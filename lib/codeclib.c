@@ -229,6 +229,7 @@ void decoder_close(decoder_t *dec) {
 
 
 static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long ts, int *ptime,
+		bool mark,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
 {
 	frame_q frames = TYPED_GQUEUE_INIT;
@@ -263,7 +264,7 @@ static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long t
 	dec->rtp_ts = ts;
 
 	if (data)
-		dec->def->codec_type->decoder_input(dec, data, &frames);
+		dec->def->codec_type->decoder_input(dec, data, &frames, mark);
 	else
 		dec->dtx.do_dtx(dec, &frames, *ptime);
 
@@ -292,23 +293,25 @@ static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long t
 	return ret;
 }
 int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
+		bool mark,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
 {
 	if (!data || !data->s || !data->len)
 		return 0;
-	return __decoder_input_data(dec, data, ts, NULL, callback, u1, u2);
+	return __decoder_input_data(dec, data, ts, NULL, mark, callback, u1, u2);
 }
 int decoder_input_data_ptime(decoder_t *dec, const str *data, unsigned long ts, int *ptime,
+		bool mark,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
 {
 	if (!data || !data->s || !data->len)
 		return 0;
-	return __decoder_input_data(dec, data, ts, ptime, callback, u1, u2);
+	return __decoder_input_data(dec, data, ts, ptime, mark, callback, u1, u2);
 }
 int decoder_dtx(decoder_t *dec, unsigned long ts, int ptime,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
 {
-	return __decoder_input_data(dec, NULL, ts, &ptime, callback, u1, u2);
+	return __decoder_input_data(dec, NULL, ts, &ptime, false, callback, u1, u2);
 }
 
 
@@ -948,7 +951,8 @@ static int cn_append_frame(decoder_t *dec, AVFrame *f, void *u1, void *u2) {
 static int generic_cn_dtx(decoder_t *dec, frame_q *out, int ptime) {
 	dec->dtx.cn.cn_dec->ptime = ptime;
 	return decoder_input_data(dec->dtx.cn.cn_dec, dec->dtx.cn.cn_payload,
-			dec->rtp_ts, cn_append_frame, out, NULL);
+			dec->rtp_ts, false,
+			cn_append_frame, out, NULL);
 }
 
 static int generic_cn_dtx_init(decoder_t *dec) {

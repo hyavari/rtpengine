@@ -123,7 +123,7 @@ struct codec_type_s {
 	void (*def_init)(struct codec_def_s *);
 
 	const char *(*decoder_init)(decoder_t *, const str *);
-	int (*decoder_input)(decoder_t *, const str *data, frame_q *);
+	int (*decoder_input)(decoder_t *, const str *data, frame_q *, bool);
 	void (*decoder_close)(decoder_t *);
 
 	const char *(*encoder_init)(encoder_t *, const str *);
@@ -418,8 +418,10 @@ decoder_t *decoder_new_fmtp(codec_def_t *def, int clockrate, int channels, int p
 		struct rtp_codec_format *fmtp, const str *fmtp_string, const str *codec_opts);
 void decoder_close(decoder_t *dec);
 int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
+		bool mark,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2);
 int decoder_input_data_ptime(decoder_t *dec, const str *data, unsigned long ts, int *ptime,
+		bool mark,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2);
 gboolean decoder_has_dtx(decoder_t *);
 int decoder_switch_dtx(decoder_t *dec, enum dtx_method);

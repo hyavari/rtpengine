@@ -67,7 +67,7 @@ static void ilbc_set_dec_options(decoder_t *dec, const str *codec_opts) {
 		ilog(LOG_WARN, "Unsupported iLBC mode %i", mode);
 }
 
-static int ilbc_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+static int ilbc_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	int mode = 0, block_align = 0;
 	static const union codec_format_options mode_20 = { .ilbc = { 20 } };
 	static const union codec_format_options mode_30 = { .ilbc = { 30 } };
@@ -97,7 +97,7 @@ static int ilbc_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
 		avc_decoder_init(dec, NULL);
 	}
 
-	return avc_decoder_input(dec, data, out);
+	return avc_decoder_input(dec, data, out, mark);
 }
 
 

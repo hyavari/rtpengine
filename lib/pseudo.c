@@ -34,7 +34,7 @@ static AVFrame *dtmf_frame_int16_t_mono(unsigned long frame_ts, unsigned long nu
 
 }
 
-static int dtmf_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+static int dtmf_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	struct telephone_event_payload *dtmf;
 	if (data->len < sizeof(*dtmf)) {
 		ilog(LOG_WARN | LOG_FLAG_LIMIT, "Short DTMF event packet (len %zu)", data->len);
@@ -87,7 +87,7 @@ static const char *cn_decoder_init(decoder_t *dec, const str *opts) {
 	dec->resampler.no_filter = true;
 	return avc_decoder_init(dec, opts);
 }
-static int cn_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+static int cn_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	// generate one set of ptime worth of samples
 	int ptime = dec->ptime;
 	if (ptime <= 0)
@@ -100,7 +100,7 @@ static int cn_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
 	do {
 		if (samples < max_size)
 			dec->avc.avcctx->frame_size = samples;
-		int ret = avc_decoder_input(dec, data, out);
+		int ret = avc_decoder_input(dec, data, out, mark);
 		dec->avc.avcctx->frame_size = max_size;
 
 		if (ret)

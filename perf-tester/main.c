@@ -377,7 +377,7 @@ static void readable(int fd, void *o) {
 			frame = STR_LEN(data->data, data->size);
 
 			if (!s->chain)
-				decoder_input_data(s->decoder, &frame, s->input_ts, got_frame, s, NULL);
+				decoder_input_data(s->decoder, &frame, s->input_ts, false, got_frame, s, NULL);
 			else {
 				AVPacket *pkt = codec_cc_input_data(s->chain, &frame, s->input_ts, s, NULL, NULL);
 				if (pkt) {

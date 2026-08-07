@@ -291,7 +291,7 @@ static const int evs_mode_bits[2][16] = {
 };
 
 
-static int evs_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+static int evs_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	str input = *data;
 	const char *err = NULL;
 

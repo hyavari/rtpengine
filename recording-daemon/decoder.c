@@ -117,7 +117,7 @@ static int decoder_got_frame(decoder_t *dec, AVFrame *frame, void *sp, void *dp)
 
 
 int decoder_input(decode_t *deco, const str *data, unsigned long ts, ssrc_t *ssrc) {
-	return decoder_input_data(deco->dec, data, ts, decoder_got_frame, ssrc, deco);
+	return decoder_input_data(deco->dec, data, ts, false, decoder_got_frame, ssrc, deco); // XXX support mark
 }
 
 void decoder_free(decode_t *deco) {

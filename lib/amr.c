@@ -301,7 +301,7 @@ static void amr_bitrate_tracker(decoder_t *dec, unsigned int ft) {
 
 	dec->avc.amr.bitrate_tracker[ft]++;
 }
-static int amr_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+static int amr_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	const char *err = NULL;
 	g_auto(GQueue) toc = G_QUEUE_INIT;
 
@@ -426,7 +426,7 @@ static int amr_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
 		if (bits == 40) {
 			// SID
 			if (dec->dtx.method_id == DTX_NATIVE) {
-				if (avc_decoder_input(dec, &frame, out))
+				if (avc_decoder_input(dec, &frame, out, mark))
 					goto err;
 			}
 			else {
@@ -436,7 +436,7 @@ static int amr_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
 			}
 		}
 		else {
-			if (avc_decoder_input(dec, &frame, out))
+			if (avc_decoder_input(dec, &frame, out, mark))
 				goto err;
 		}
 
@@ -625,7 +625,7 @@ static int amr_dtx(decoder_t *dec, frame_q *out, int ptime) {
 	unsigned char frame_buf[1];
 	frame_buf[0] = 0xf << 3; // no data
 	str frame = STR_CONST_BUF(frame_buf);
-	if (avc_decoder_input(dec, &frame, out))
+	if (avc_decoder_input(dec, &frame, out, false))
 		ilog(LOG_WARN | LOG_FLAG_LIMIT, "Error while writing 'no data' frame to AMR decoder");
 	return 0;
 }

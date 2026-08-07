@@ -4854,7 +4854,11 @@ static tc_code __rtp_decode_direct(struct codec_ssrc_handler *ch, struct codec_s
 			}
 		}
 		else {
-			int ret = decoder_input_data_ptime(ch->decoder, packet->payload, packet->ts, &mp->ptime,
+			int ret = decoder_input_data_ptime(ch->decoder,
+					packet->payload,
+					packet->ts,
+					&mp->ptime,
+					packet->marker,
 					ch->handler->packet_decoded,
 					ch, mp);
 			code = ret == 0 ? TCC_OK : TCC_ERR;
@@ -5130,6 +5134,7 @@ static int handler_func_transcode(struct codec_handler *h, struct media_packet *
 
 static int handler_func_playback(struct codec_handler *h, struct media_packet *mp) {
 	decoder_input_data(h->ssrc_handler->decoder, &mp->payload, mp->rtp->timestamp,
+			!!(mp->rtp->m_pt & 0x80),
 			h->packet_decoded, h->ssrc_handler, mp);
 	return 0;
 }
@@ -5142,6 +5147,7 @@ static int handler_func_inject_dtmf(struct codec_handler *h, struct media_packet
 	if (!ch)
 		return 0;
 	decoder_input_data(ch->decoder, &mp->payload, mp->rtp->timestamp,
+			false, // XXX move marker handling here?
 			h->packet_decoded, ch, mp);
 	ssrc_entry_release(ch);
 	return 0;

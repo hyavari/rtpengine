@@ -68,7 +68,7 @@ void avc_decoder_close(decoder_t *dec) {
 }
 
 
-int avc_decoder_input(decoder_t *dec, const str *data, frame_q *out) {
+int avc_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) {
 	if (!dec->avc.avpkt)
 		return -1; // decoder shut down
 
