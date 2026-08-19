@@ -35,15 +35,6 @@ typedef enum {
 } mp_cached_code;
 
 #ifdef WITH_TRANSCODING
-static bool media_player_play_file(struct media_player *mp, media_player_opts_t opts);
-static bool media_player_play_blob(struct media_player *mp, media_player_opts_t opts);
-static bool media_player_play_db(struct media_player *mp, media_player_opts_t opts);
-static bool media_player_add_file(struct media_player *mp, media_player_opts_t opts);
-static bool media_player_add_blob(struct media_player *mp, media_player_opts_t opts);
-static bool media_player_add_db(struct media_player *mp, media_player_opts_t opts);
-#endif
-
-#ifdef WITH_TRANSCODING
 static struct timerthread media_player_thread;
 static __thread MYSQL *mysql_conn;
 
@@ -130,6 +121,9 @@ static GQueue media_player_db_media_ids = G_QUEUE_INIT;
 
 static bool media_player_read_packet(struct media_player *mp);
 static mp_cached_code __media_player_add_blob_id(struct media_player *mp,
+		media_player_opts_t opts,
+		const rtp_payload_type *dst_pt);
+static mp_cached_code __media_player_add_db(struct media_player *mp,
 		media_player_opts_t opts,
 		const rtp_payload_type *dst_pt);
 
@@ -1534,45 +1528,37 @@ static mp_cached_code __media_player_add_file(struct media_player *mp,
 
 	return MPC_OK;
 }
+#endif
 
-// call->master_lock held in W
-static bool media_player_play_file(struct media_player *mp, media_player_opts_t opts) {
+bool media_player_play(struct media_player *mp, media_player_opts_t opts) {
+#ifdef WITH_TRANSCODING
 	const rtp_payload_type *dst_pt = media_player_play_init(mp);
 	if (!dst_pt)
 		return false;
 
-	mp_cached_code ret = __media_player_add_file(mp, opts, dst_pt);
+	mp_cached_code ret = MPC_ERR;
+
+	if (opts.file.len)
+		ret = __media_player_add_file(mp, opts, dst_pt);
+	else if (opts.blob.len) {
+		// make sure to reset db_id before using blob
+		opts.db_id = 0;
+		ret = __media_player_add_blob_id(mp, opts, dst_pt);
+	}
+	else if (opts.db_id > 0)
+		ret = __media_player_add_db(mp, opts, dst_pt);
+
 	if (ret == MPC_CACHED)
 		return true;
 	if (ret == MPC_ERR)
 		return false;
 
 	return media_player_play_start(mp, dst_pt, opts.codec_set);
-}
-#endif
-
-bool media_player_add(struct media_player *mp, media_player_opts_t opts) {
-#ifdef WITH_TRANSCODING
-	if (opts.file.len)
-		return media_player_add_file(mp, opts);
-	else if (opts.blob.len)
-		return media_player_add_blob(mp, opts);
-	else if (opts.db_id > 0)
-		return media_player_add_db(mp, opts);
-	else
-		return false;
 #else
 	return false;
 #endif
 }
 
-#ifdef WITH_TRANSCODING
-// call->master_lock held in W
-static bool media_player_add_file(struct media_player *mp, media_player_opts_t opts) {
-	int ret = __media_player_add_file(mp, opts, NULL);
-	return ret == 0;
-}
-#endif
 
 /**
  * When to_ml is given, check MoH capabilities of it,
@@ -1716,7 +1702,7 @@ const char * call_check_moh(struct call_monologue *from_ml, struct call_monologu
 #endif
 }
 
-const char * call_play_media_for_ml(struct call_monologue *ml,
+const char *call_play_media_for_ml(struct call_monologue *ml,
 		media_player_opts_t opts, sdp_ng_flags *flags)
 {
 #ifdef WITH_TRANSCODING
@@ -1737,20 +1723,9 @@ const char * call_play_media_for_ml(struct call_monologue *ml,
 		media_player_new(&ml->player, ml, NULL, &opts);
 	}
 
-	if (opts.file.len) {
-		if (!media_player_play_file(ml->player, opts))
-			return "Failed to start media playback from file";
-	}
-	else if (opts.blob.len) {
-		if (!media_player_play_blob(ml->player, opts))
-			return "Failed to start media playback from blob";
-	}
-	else if (opts.db_id > 0) {
-		if (!media_player_play_db(ml->player, opts))
-			return "Failed to start media playback from database";
-	}
-	else
-		return "No media file specified";
+	if (!media_player_play(ml->player, opts))
+		return "Failed to start media playback";
+
 	return NULL;
 #else
 	return "Not implemented";
@@ -1883,32 +1858,6 @@ err:
 		ilog(LOG_ERR, "Error returned from libav: %s", av_error(av_ret));
 	media_player_coder_shutdown(&mp->coder);
 	return MPC_ERR;
-}
-
-
-// call->master_lock held in W
-static bool media_player_play_blob(struct media_player *mp, media_player_opts_t opts) {
-	const rtp_payload_type *dst_pt = media_player_play_init(mp);
-	if (!dst_pt)
-		return false;
-
-	/* make sure to reset db_id before using blob */
-	opts.db_id = 0;
-	mp_cached_code ret = __media_player_add_blob_id(mp, opts, dst_pt);
-	if (ret == MPC_CACHED)
-		return true;
-	if (ret == MPC_ERR)
-		return false;
-
-	return media_player_play_start(mp, dst_pt, opts.codec_set);
-}
-
-// call->master_lock held in W
-static bool media_player_add_blob(struct media_player *mp, media_player_opts_t opts) {
-	/* make sure to reset db_id before using blob */
-	opts.db_id = 0;
-	int ret = __media_player_add_blob_id(mp, opts, NULL);
-	return ret != MPC_ERR;
 }
 
 
@@ -2065,28 +2014,6 @@ static mp_cached_code __media_player_add_db(struct media_player *mp,
 
 	return __media_player_add_blob_id(mp, opts, dst_pt);
 }
-
-// call->master_lock held in W
-static bool media_player_play_db(struct media_player *mp, media_player_opts_t opts) {
-	const rtp_payload_type *dst_pt = media_player_play_init(mp);
-	if (!dst_pt)
-		return false;
-
-	mp_cached_code ret = __media_player_add_db(mp, opts, dst_pt);
-	if (ret == MPC_CACHED)
-		return true;
-	if (ret == MPC_ERR)
-		return false;
-
-	return media_player_play_start(mp, dst_pt, opts.codec_set);
-}
-
-// call->master_lock held in W
-static bool media_player_add_db(struct media_player *mp, media_player_opts_t opts) {
-	int ret = __media_player_add_db(mp, opts, NULL);
-	return ret != MPC_ERR;
-}
-
 
 static void media_player_run(void *ptr) {
 	struct media_player *mp = ptr;

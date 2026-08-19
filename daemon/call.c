@@ -2873,7 +2873,7 @@ static void __call_monologue_init_from_flags(struct call_monologue *ml, struct c
 			);
 		media_player_new(&ml->rec_player, ml, NULL, &opts);
 
-		if (!media_player_add(ml->rec_player, opts))
+		if (!media_player_play(ml->rec_player, opts))
 			ilog(LOG_WARN, "Failed to add media player for recording announcement");
 	}
 #endif
