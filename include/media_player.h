@@ -122,8 +122,9 @@ struct send_timer {
 
 #define MPO(...) (media_player_opts_t){__VA_ARGS__}
 
-void media_player_new(struct media_player **, struct call_monologue *, struct ssrc_entry_call *prev_ssrc, media_player_opts_t *);
-bool media_player_play(struct media_player *mp, media_player_opts_t opts);
+void media_player_new(struct media_player **, struct call_monologue *,
+		struct ssrc_entry_call *prev_ssrc, media_player_opts_t *);
+bool media_player_play(struct media_player *mp, media_player_opts_t *opts);
 bool media_player_start(struct media_player *);
 long long media_player_stop(struct media_player *);
 bool media_player_is_active(struct call_monologue *);
@@ -138,7 +139,7 @@ void media_player_add_packet(struct media_player *mp, char *buf, size_t len,
 		int64_t us_dur, unsigned long long pts);
 
 const char *call_play_media_for_ml(struct call_monologue *ml,
-		media_player_opts_t opts, sdp_ng_flags *flags);
+		media_player_opts_t *opts, sdp_ng_flags *flags);
 long long call_stop_media_for_ml(struct call_monologue *ml);
 bool call_ml_wants_moh(struct call_monologue *from_ml, struct call_monologue *to_ml, enum ng_opmode opmode);
 bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,

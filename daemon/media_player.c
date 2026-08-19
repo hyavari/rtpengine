@@ -43,7 +43,7 @@ struct media_player_cache_packet;
 static void cache_packet_free(struct media_player_cache_packet *p);
 TYPED_GPTRARRAY_FULL(cache_packet_arr, struct media_player_cache_packet, cache_packet_free)
 
-static void __media_player_set_opts(struct media_player *mp, media_player_opts_t opts);
+static void __media_player_set_opts(struct media_player *mp, const media_player_opts_t *opts);
 
 struct media_player_cache_index {
 	struct media_player_content_index index;
@@ -121,10 +121,10 @@ static GQueue media_player_db_media_ids = G_QUEUE_INIT;
 
 static bool media_player_read_packet(struct media_player *mp);
 static mp_cached_code __media_player_add_blob_id(struct media_player *mp,
-		media_player_opts_t opts,
+		const media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt);
 static mp_cached_code __media_player_add_db(struct media_player *mp,
-		media_player_opts_t opts,
+		media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt);
 
 static int media_player_read_first_frame(struct media_player *mp);
@@ -262,7 +262,7 @@ void media_player_new(struct media_player **mpp, struct call_monologue *ml, stru
 
 	/* add opts if given */
 	if (opts)
-		__media_player_set_opts(mp, *opts);
+		__media_player_set_opts(mp, opts);
 
 	if (!mp->coder.pkt) {
 		mp->coder.pkt = av_packet_alloc();
@@ -679,7 +679,7 @@ static void media_player_cached_reader_start(struct media_player *mp, str_case_v
 	struct media_player_cache_entry *entry = mp->cache_entry;
 	const rtp_payload_type *dst_pt = &entry->coder.handler->dest_pt;
 
-	__media_player_set_opts(mp, mp->opts);
+	__media_player_set_opts(mp, &mp->opts);
 
 	if (entry->kernel_idx != KERNEL_IDX_NONE) {
 		media_player_kernel_player_start(mp);
@@ -1276,7 +1276,7 @@ static bool media_player_play_start(struct media_player *mp, const rtp_payload_t
 	if (__ensure_codec_handler(mp, dst_pt, codec_set))
 		return false;
 
-	__media_player_set_opts(mp, mp->opts);
+	__media_player_set_opts(mp, &mp->opts);
 
 	if (media_player_cache_entry_init(mp, dst_pt, codec_set))
 		return true;
@@ -1416,7 +1416,7 @@ static void media_player_media_files_insert(const str *fn, struct media_player_m
 }
 
 static mp_cached_code media_player_set_media_file(struct media_player *mp,
-		media_player_opts_t opts,
+		media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt,
 		struct media_player_media_file *fo)
 {
@@ -1426,8 +1426,8 @@ static mp_cached_code media_player_set_media_file(struct media_player *mp,
 	mp->media_file = fo;
 
 	// switch to blob playing
-	opts.file = STR_NULL;
-	opts.blob = fo->blob;
+	opts->file = STR_NULL;
+	opts->blob = fo->blob;
 	// db_id remains set if it was, so that the cache lookup can succeed
 	return __media_player_add_blob_id(mp, opts, dst_pt);
 }
@@ -1491,8 +1491,8 @@ static struct media_player_media_file *(*media_player_db_id_get)(unsigned long l
 	= media_player_db_id_get_only;
 
 
-static void __media_player_set_opts(struct media_player *mp, media_player_opts_t opts) {
-	mp->opts = opts;
+static void __media_player_set_opts(struct media_player *mp, const media_player_opts_t *opts) {
+	mp->opts = *opts;
 
 	if (mp->media && mp->opts.block_egress)
 		MEDIA_SET(mp->media, BLOCK_EGRESS);
@@ -1501,24 +1501,24 @@ static void __media_player_set_opts(struct media_player *mp, media_player_opts_t
 
 // call->master_lock held in W
 static mp_cached_code __media_player_add_file(struct media_player *mp,
-		media_player_opts_t opts,
+		media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt)
 {
 	mp->cache_index.type = MP_FILE;
-	mp->cache_index.file = call_str_cpy(&opts.file);
+	mp->cache_index.file = call_str_cpy(&opts->file);
 
-	if (media_player_cache_get_entry(mp, dst_pt, opts.codec_set))
+	if (media_player_cache_get_entry(mp, dst_pt, opts->codec_set))
 		return MPC_CACHED;
 
 	// check if we have it in memory
-	struct media_player_media_file *fo = media_player_media_files_get(&opts.file);
+	struct media_player_media_file *fo = media_player_media_files_get(&opts->file);
 	if (fo) {
 		ilog(LOG_DEBUG, "Using cached media file for playback");
 		return media_player_set_media_file(mp, opts, dst_pt, fo);
 	}
 
 	char file_s[PATH_MAX];
-	snprintf(file_s, sizeof(file_s), STR_FORMAT, STR_FMT(&opts.file));
+	snprintf(file_s, sizeof(file_s), STR_FORMAT, STR_FMT(&opts->file));
 
 	int ret = avformat_open_input(&mp->coder.fmtctx, file_s, NULL, NULL);
 	if (ret < 0) {
@@ -1530,7 +1530,7 @@ static mp_cached_code __media_player_add_file(struct media_player *mp,
 }
 #endif
 
-bool media_player_play(struct media_player *mp, media_player_opts_t opts) {
+bool media_player_play(struct media_player *mp, media_player_opts_t *opts) {
 #ifdef WITH_TRANSCODING
 	const rtp_payload_type *dst_pt = media_player_play_init(mp);
 	if (!dst_pt)
@@ -1538,14 +1538,14 @@ bool media_player_play(struct media_player *mp, media_player_opts_t opts) {
 
 	mp_cached_code ret = MPC_ERR;
 
-	if (opts.file.len)
+	if (opts->file.len)
 		ret = __media_player_add_file(mp, opts, dst_pt);
-	else if (opts.blob.len) {
+	else if (opts->blob.len) {
 		// make sure to reset db_id before using blob
-		opts.db_id = 0;
+		opts->db_id = 0;
 		ret = __media_player_add_blob_id(mp, opts, dst_pt);
 	}
-	else if (opts.db_id > 0)
+	else if (opts->db_id > 0)
 		ret = __media_player_add_db(mp, opts, dst_pt);
 
 	if (ret == MPC_CACHED)
@@ -1553,7 +1553,7 @@ bool media_player_play(struct media_player *mp, media_player_opts_t opts) {
 	if (ret == MPC_ERR)
 		return false;
 
-	return media_player_play_start(mp, dst_pt, opts.codec_set);
+	return media_player_play_start(mp, dst_pt, opts->codec_set);
 #else
 	return false;
 #endif
@@ -1679,7 +1679,7 @@ const char * call_check_moh(struct call_monologue *from_ml, struct call_monologu
 			);
 
 		/* whom to play the moh audio */
-		errstr = call_play_media_for_ml(to_ml, opts, NULL);
+		errstr = call_play_media_for_ml(to_ml, &opts, NULL);
 		if (errstr) {
 			to_ml->player->opts.moh = 0; /* initialization failed, mark accordingly */
 			return errstr;
@@ -1703,7 +1703,7 @@ const char * call_check_moh(struct call_monologue *from_ml, struct call_monologu
 }
 
 const char *call_play_media_for_ml(struct call_monologue *ml,
-		media_player_opts_t opts, sdp_ng_flags *flags)
+		media_player_opts_t *opts, sdp_ng_flags *flags)
 {
 #ifdef WITH_TRANSCODING
 	/* if mixing is enabled, codec handlers of all sources must be updated */
@@ -1720,7 +1720,7 @@ const char *call_play_media_for_ml(struct call_monologue *ml,
 	else {
 		/* media_player_new() now knows that audio player is in use
 		* TODO: player options can have changed if already exists */
-		media_player_new(&ml->player, ml, NULL, &opts);
+		media_player_new(&ml->player, ml, NULL, opts);
 	}
 
 	if (!media_player_play(ml->player, opts))
@@ -1802,28 +1802,28 @@ static int64_t __mp_avio_seek(void *opaque, int64_t offset, int whence) {
 
 // call->master_lock held in W
 static mp_cached_code __media_player_add_blob_id(struct media_player *mp,
-		media_player_opts_t opts,
+		const media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt)
 {
 	const char *err;
 	int av_ret = 0;
 
-	if (opts.db_id > 0) {
+	if (opts->db_id > 0) {
 		mp->cache_index.type = MP_DB;
-		mp->cache_index.db_id = opts.db_id;
+		mp->cache_index.db_id = opts->db_id;
 
-		if (media_player_cache_get_entry(mp, dst_pt, opts.codec_set))
+		if (media_player_cache_get_entry(mp, dst_pt, opts->codec_set))
 			return MPC_CACHED;
 	}
 	else {
 		mp->cache_index.type = MP_BLOB;
-		mp->cache_index.file = call_str_cpy(&opts.blob);
+		mp->cache_index.file = call_str_cpy(&opts->blob);
 
-		if (media_player_cache_get_entry(mp, dst_pt, opts.codec_set))
+		if (media_player_cache_get_entry(mp, dst_pt, opts->codec_set))
 			return MPC_CACHED;
 	}
 
-	mp->coder.blob = call_str_cpy(&opts.blob);
+	mp->coder.blob = call_str_cpy(&opts->blob);
 	mp->coder.read_pos = mp->coder.blob;
 
 	err = "could not allocate AVFormatContext";
@@ -1974,13 +1974,13 @@ err:
 
 // call->master_lock held in W
 static mp_cached_code __media_player_add_db(struct media_player *mp,
-		media_player_opts_t opts,
+		media_player_opts_t *opts,
 		const rtp_payload_type *dst_pt)
 {
 	const char *err;
 
 	// check if we have it in memory
-	__auto_type fo = media_player_db_id_get(opts.db_id);
+	__auto_type fo = media_player_db_id_get(opts->db_id);
 	if (fo) {
 		ilog(LOG_DEBUG, "Using cached DB media for playback");
 		return media_player_set_media_file(mp, opts, dst_pt, fo);
@@ -1988,7 +1988,7 @@ static mp_cached_code __media_player_add_db(struct media_player *mp,
 
 	// or maybe we have a cache file for it
 	if (rtpe_config.db_media_cache) {
-		g_autoptr(char) fn = media_player_make_cache_entry_name(opts.db_id);
+		g_autoptr(char) fn = media_player_make_cache_entry_name(opts->db_id);
 		gchar *buf = NULL;
 		gsize len = -1;
 		gboolean ret = g_file_get_contents(fn, &buf, &len, NULL);
@@ -2008,7 +2008,7 @@ static mp_cached_code __media_player_add_db(struct media_player *mp,
 			g_free(buf);
 	}
 
-	err = media_player_get_db_id(&opts.blob, opts.db_id, call_str_cpy_len, media_player_add_cache_file);
+	err = media_player_get_db_id(&opts->blob, opts->db_id, call_str_cpy_len, media_player_add_cache_file);
 	if (err)
 		return MPC_ERR;
 

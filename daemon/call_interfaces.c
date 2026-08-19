@@ -2003,7 +2003,7 @@ const char *call_play_media_ng(ng_command_ctx_t *ctx) {
 
 		ilog(LOG_DEBUG, "Requesting play media");
 
-		err = call_play_media_for_ml(monologue, opts, &flags);
+		err = call_play_media_for_ml(monologue, &opts, &flags);
 		if (err)
 			return err;
 
