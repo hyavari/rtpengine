@@ -494,6 +494,13 @@ struct media_subscription {
 
 typedef IQUEUE(struct media_subscription, link) subscription_q;
 
+enum {
+	MP_DEFAULT = 0,
+	MP_REC,
+
+	MP_COUNT
+};
+
 
 
 /**
@@ -625,8 +632,7 @@ struct call_monologue {
 	GHashTable		*subscribers_ht;	/* for quick lookup */
 	medias_arr		*medias;
 	media_id_ht		media_ids;
-	struct media_player	*player;
-	struct media_player	*rec_player;
+	struct media_player	*players[MP_COUNT];
 	struct session_bandwidth sdp_session_bandwidth;
 	GString			*last_out_sdp;
 

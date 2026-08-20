@@ -2007,8 +2007,8 @@ const char *call_play_media_ng(ng_command_ctx_t *ctx) {
 		if (err)
 			return err;
 
-		if (l == monologues.head && monologue->player->coder.duration)
-			parser->dict_add_int(ctx->resp, "duration", monologue->player->coder.duration);
+		if (l == monologues.head && monologue->players[MP_DEFAULT]->coder.duration)
+			parser->dict_add_int(ctx->resp, "duration", monologue->players[MP_DEFAULT]->coder.duration);
 
 	}
 
@@ -2035,10 +2035,10 @@ const char *call_stop_media_ng(ng_command_ctx_t *ctx) {
 	for (__auto_type l = monologues.head; l; l = l->next) {
 		struct call_monologue *monologue = l->data;
 
-		if (!monologue->player)
+		if (!monologue->players[MP_DEFAULT])
 			return "Not currently playing media";
 
-		if (monologue->player->opts.moh)
+		if (monologue->players[MP_DEFAULT]->opts.moh)
 			return "Currently MoH ongoing, ignore stop media.";
 
 		last_frame_pos = call_stop_media_for_ml(monologue);

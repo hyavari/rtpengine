@@ -1581,7 +1581,8 @@ static bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monolo
 		enum ng_opmode opmode)
 {
 #ifdef WITH_TRANSCODING
-	if (opmode == OP_OFFER && !call_ml_sendonly_inactive(from_ml) && (to_ml->player && to_ml->player->opts.moh))
+	if (opmode == OP_OFFER && !call_ml_sendonly_inactive(from_ml)
+			&& (to_ml->players[MP_DEFAULT] && to_ml->players[MP_DEFAULT]->opts.moh))
 	{
 		return true;
 	}
@@ -1604,13 +1605,13 @@ static void call_ml_moh_handle_flags(struct call_monologue *from_ml, struct call
 	/* if from_ml not given, then it's a reflected MoH, use capabilities of to_ml */
 	struct call_monologue *moh_ml = from_ml ? : to_ml;
 
-	if (!to_ml->player ||
+	if (!to_ml->players[MP_DEFAULT] ||
 		!ML_ISSET2(moh_ml, MOH_ZEROCONN, MOH_SENDRECV))
 	{
 		return;
 	}
 
-	struct call_media * media = to_ml->player->media;
+	struct call_media * media = to_ml->players[MP_DEFAULT]->media;
 	if (media) {
 		/* check zero-connection */
 		if (ML_ISSET(moh_ml, MOH_ZEROCONN)) {
@@ -1681,7 +1682,7 @@ const char * call_check_moh(struct call_monologue *from_ml, struct call_monologu
 		/* whom to play the moh audio */
 		errstr = call_play_media_for_ml(to_ml, &opts, NULL);
 		if (errstr) {
-			to_ml->player->opts.moh = 0; /* initialization failed, mark accordingly */
+			to_ml->players[MP_DEFAULT]->opts.moh = 0; /* initialization failed, mark accordingly */
 			return errstr;
 		}
 
@@ -1712,7 +1713,7 @@ const char *call_play_media_for_ml(struct call_monologue *ml,
 	/* this starts the audio player if needed */
 	update_init_monologue_subscribers(ml, OP_PLAY_MEDIA);
 
-	if (ml->player && ml->player->opts.moh) {
+	if (ml->players[MP_DEFAULT] && ml->players[MP_DEFAULT]->opts.moh) {
 		ilog(LOG_DEBUG, "There is already ongoing media playback for MoH. Ignore new one.");
 		/* pretend that everything is good */
 		return NULL;
@@ -1720,10 +1721,10 @@ const char *call_play_media_for_ml(struct call_monologue *ml,
 	else {
 		/* media_player_new() now knows that audio player is in use
 		* TODO: player options can have changed if already exists */
-		media_player_new(&ml->player, ml, NULL, opts);
+		media_player_new(&ml->players[MP_DEFAULT], ml, NULL, opts);
 	}
 
-	if (!media_player_play(ml->player, opts))
+	if (!media_player_play(ml->players[MP_DEFAULT], opts))
 		return "Failed to start media playback";
 
 	return NULL;
@@ -1735,14 +1736,14 @@ const char *call_play_media_for_ml(struct call_monologue *ml,
 long long call_stop_media_for_ml(struct call_monologue *ml)
 {
 #ifdef WITH_TRANSCODING
-	if (!ml->player)
+	if (!ml->players[MP_DEFAULT])
 		return 0;
-	long long ret = media_player_stop(ml->player);
+	long long ret = media_player_stop(ml->players[MP_DEFAULT]);
 	/* restore to non-mixing if needed */
 	codec_update_all_source_handlers(ml);
 	update_init_monologue_subscribers(ml, OP_STOP_MEDIA);
 	/* mark MoH as already not used (it can be unset now) */
-	ml->player->opts.moh = 0;
+	ml->players[MP_DEFAULT]->opts.moh = 0;
 	return ret;
 #else
 	return 0;
@@ -2054,9 +2055,9 @@ static void media_player_run(void *ptr) {
 bool media_player_is_active(struct call_monologue *ml) {
 	if (!ml)
 		return false;
-	if (!ml->player)
+	if (!ml->players[MP_DEFAULT])
 		return false;
-	if (!ml->player->next_run)
+	if (!ml->players[MP_DEFAULT]->next_run)
 		return false;
 	return true;
 }

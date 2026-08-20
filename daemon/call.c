@@ -2871,9 +2871,9 @@ static void __call_monologue_init_from_flags(struct call_monologue *ml, struct c
 				.blob = flags->blob,
 				.db_id = flags->db_id,
 			);
-		media_player_new(&ml->rec_player, ml, NULL, &opts);
+		media_player_new(&ml->players[MP_REC], ml, NULL, &opts);
 
-		if (!media_player_play(ml->rec_player, &opts))
+		if (!media_player_play(ml->players[MP_REC], &opts))
 			ilog(LOG_WARN, "Failed to add media player for recording announcement");
 	}
 #endif
@@ -5193,8 +5193,8 @@ static void __call_cleanup(call_t *c) {
 	for (__auto_type l = c->monologues.head; l; l = l->next) {
 		struct call_monologue *ml = l->data;
 		__monologue_stop(ml);
-		media_player_put(&ml->player);
-		media_player_put(&ml->rec_player);
+		media_player_put(&ml->players[MP_DEFAULT]);
+		media_player_put(&ml->players[MP_REC]);
 		if (ml->tone_freqs)
 			g_array_free(ml->tone_freqs, true);
 		obj_release(ml->janus_session);
@@ -6436,8 +6436,8 @@ void call_media_stop(struct call_media *m) {
  * Stops media player of given monologue.
  */
 static void __monologue_stop(struct call_monologue *ml) {
-	media_player_stop(ml->player);
-	media_player_stop(ml->rec_player);
+	media_player_stop(ml->players[MP_DEFAULT]);
+	media_player_stop(ml->players[MP_REC]);
 }
 /**
  * Stops media player and all medias of given monologue.

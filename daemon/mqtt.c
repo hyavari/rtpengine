@@ -171,7 +171,7 @@ static void mqtt_monologue_stats(struct call_monologue *ml, JsonBuilder *json) {
 	}
 
 #ifdef WITH_TRANSCODING
-	struct media_player *mp = ml->player;
+	struct media_player *mp = ml->players[MP_DEFAULT];
 	if (mp) {
 		mutex_lock(&mp->lock);
 
