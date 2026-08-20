@@ -183,7 +183,6 @@ static void media_player_shutdown(struct media_player *mp) {
 	if (mp->opts.block_egress && mp->media)
 		MEDIA_CLEAR(mp->media, BLOCK_EGRESS);
 
-	mp->media = NULL;
 	media_player_coder_shutdown(&mp->coder);
 
 	if (mp->kernel_idx != KERNEL_IDX_NONE)
@@ -232,7 +231,7 @@ static void __media_player_free(struct media_player *mp) {
 
 
 // call->master_lock held in W
-void media_player_new(struct media_player **mpp, struct call_monologue *ml, struct ssrc_entry_call *prev_ssrc,
+void media_player_new(struct media_player **mpp, struct call_media *media, struct ssrc_entry_call *prev_ssrc,
 		media_player_opts_t *opts)
 {
 #ifdef WITH_TRANSCODING
@@ -251,8 +250,8 @@ void media_player_new(struct media_player **mpp, struct call_monologue *ml, stru
 		mp->kernel_idx = KERNEL_IDX_NONE;
 
 		mp->run_func = media_player_read_packet; // default
-		mp->call = obj_get(ml->call);
-		mp->ml = ml;
+		mp->call = obj_get(media->call);
+		mp->media = media;
 		if (prev_ssrc)
 			mp->seq = atomic_get_na(&prev_ssrc->stats->ext_seq) + 1;
 		else
@@ -1060,7 +1059,7 @@ static int __ensure_codec_handler(struct media_player *mp, const rtp_payload_typ
 	src_pt.channels = GET_CHANNELS(mp->coder.avstream->codecpar);
 	src_pt.clock_rate = mp->coder.avstream->codecpar->sample_rate;
 
-	codec_init_payload_type(&src_pt, MT_AUDIO);
+	codec_init_payload_type(&src_pt, mp->media->type_id);
 
 	if (__media_player_setup_internal(mp, &src_pt, dst_pt, codec_set))
 		return -1;
@@ -1205,8 +1204,8 @@ static bool media_player_read_packet(struct media_player *mp) {
 
 
 // call->master_lock held in W
-void media_player_set_media(struct media_player *mp, struct call_media *media) {
-	mp->media = media;
+void media_player_set_sink(struct media_player *mp) {
+	struct call_media *media = mp->media;
 	if (media->streams.head) {
 		mp->sink.sink = media->streams.head->data;
 		sink_handler_set_generic(&mp->sink);
@@ -1226,26 +1225,7 @@ void media_player_set_media(struct media_player *mp, struct call_media *media) {
 // call->master_lock held in W
 // returns destination payload type, or NULL on failure
 static const rtp_payload_type *media_player_play_setup(struct media_player *mp) {
-	// find call media suitable for playback
-	struct call_media *media;
-	for (unsigned int i = 0; i < mp->ml->medias->len; i++) {
-		media = mp->ml->medias->pdata[i];
-		if (media->type_id != MT_AUDIO)
-			continue;
-		/* moh allows inactive */
-		if (!mp->opts.moh && !MEDIA_ISSET(media, SEND))
-			continue;
-		if (media->streams.length == 0)
-			continue;
-		goto found;
-	}
-	media = NULL;
-found:
-	if (!media) {
-		ilog(LOG_ERR, "No suitable SDP section for media playback");
-		return NULL;
-	}
-	media_player_set_media(mp, media);
+	media_player_set_sink(mp);
 	return media_player_get_dst_pt(mp);
 }
 
@@ -1581,11 +1561,18 @@ static bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monolo
 		enum ng_opmode opmode)
 {
 #ifdef WITH_TRANSCODING
-	if (opmode == OP_OFFER && !call_ml_sendonly_inactive(from_ml)
-			&& (to_ml->players[MP_DEFAULT] && to_ml->players[MP_DEFAULT]->opts.moh))
-	{
-		return true;
-	}
+	if (opmode != OP_OFFER)
+		return false;
+	if (call_ml_sendonly_inactive(from_ml))
+		return false;
+	if (!to_ml->audio)
+		return false;
+	if (!to_ml->audio->players[MP_DEFAULT])
+		return false;
+	if (!to_ml->audio->players[MP_DEFAULT]->opts.moh)
+		return false;
+
+	return true;
 #endif
 	return false;
 }
@@ -1601,48 +1588,48 @@ static bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monolo
  */
 static void call_ml_moh_handle_flags(struct call_monologue *from_ml, struct call_monologue *to_ml) {
 #ifdef WITH_TRANSCODING
-
 	/* if from_ml not given, then it's a reflected MoH, use capabilities of to_ml */
 	struct call_monologue *moh_ml = from_ml ? : to_ml;
 
-	if (!to_ml->players[MP_DEFAULT] ||
+	struct call_media *audio = to_ml->audio;
+	if (!audio)
+		return;
+
+	if (!audio->players[MP_DEFAULT] ||
 		!ML_ISSET2(moh_ml, MOH_ZEROCONN, MOH_SENDRECV))
 	{
 		return;
 	}
 
-	struct call_media * media = to_ml->players[MP_DEFAULT]->media;
-	if (media) {
-		/* check zero-connection */
-		if (ML_ISSET(moh_ml, MOH_ZEROCONN)) {
-			struct packet_stream *ps;
-			__auto_type msl = media->streams.head;
-			while (msl)
-			{
-				ps = msl->data;
-				if (PS_ISSET(ps, RTP)) { /* find RTP stream, and don't touch RTCP */
-					ilog(LOG_DEBUG, "Forced packet stream of '"STR_FORMAT"' (media index: '%d')"
-							"to zero_addr due to MoH zero-connection.",
-							STR_FMT(&media->monologue->tag), media->index);
-					PS_SET(ps, ZERO_ADDR);
-					goto check_next; /* stop */
-				}
-				msl = msl->next;
+	/* check zero-connection */
+	if (ML_ISSET(moh_ml, MOH_ZEROCONN)) {
+		struct packet_stream *ps;
+		__auto_type msl = audio->streams.head;
+		while (msl)
+		{
+			ps = msl->data;
+			if (PS_ISSET(ps, RTP)) { /* find RTP stream, and don't touch RTCP */
+				ilog(LOG_DEBUG, "Forced packet stream of '"STR_FORMAT"' (media index: '%d')"
+						"to zero_addr due to MoH zero-connection.",
+						STR_FMT(&audio->monologue->tag), audio->index);
+				PS_SET(ps, ZERO_ADDR);
+				goto check_next; /* stop */
 			}
+			msl = msl->next;
 		}
+	}
 check_next:
-		/* check mode sendrecv */
-		if (ML_ISSET(moh_ml, MOH_SENDRECV)) {
-			bf_set(&media->media_flags, MEDIA_FLAG_SEND | MEDIA_FLAG_RECV);
-			bf_set(&media->media_flags, MEDIA_FLAG_FAKE_SENDRECV);
+	/* check mode sendrecv */
+	if (ML_ISSET(moh_ml, MOH_SENDRECV)) {
+		bf_set(&audio->media_flags, MEDIA_FLAG_SEND | MEDIA_FLAG_RECV);
+		bf_set(&audio->media_flags, MEDIA_FLAG_FAKE_SENDRECV);
 
-			if (media->media_subscriptions.head) {
-				__auto_type sub = media->media_subscriptions.head;
-				__auto_type sub_m = sub->media;
-				/* mark real state of originators media (no flag set - inactive, real_sendonly - sendonly) */
-				if (MEDIA_ISSET(sub_m, RECV))
-					bf_set(&media->media_flags, MEDIA_FLAG_REAL_SENDONLY);
-			}
+		if (audio->media_subscriptions.head) {
+			__auto_type sub = audio->media_subscriptions.head;
+			__auto_type sub_m = sub->media;
+			/* mark real state of originators media (no flag set - inactive, real_sendonly - sendonly) */
+			if (MEDIA_ISSET(sub_m, RECV))
+				bf_set(&audio->media_flags, MEDIA_FLAG_REAL_SENDONLY);
 		}
 	}
 #endif
@@ -1681,10 +1668,8 @@ const char *call_check_moh(struct call_monologue *from_ml, struct call_monologue
 
 		/* whom to play the moh audio */
 		errstr = call_play_media_for_ml(to_ml, MP_DEFAULT, &opts, NULL);
-		if (errstr) {
-			to_ml->players[MP_DEFAULT]->opts.moh = 0; /* initialization failed, mark accordingly */
+		if (errstr)
 			return errstr;
-		}
 
 		/* handle MoH related flags */
 		call_ml_moh_handle_flags((reflected ? NULL : from_ml), to_ml);
@@ -1703,6 +1688,27 @@ const char *call_check_moh(struct call_monologue *from_ml, struct call_monologue
 #endif
 }
 
+
+static void set_monologue_media(struct call_monologue *ml, bool allow_inactive) {
+	ml->audio = NULL;
+
+	for (unsigned int i = 0; i < ml->medias->len; i++) {
+		__auto_type m = ml->medias->pdata[i];
+		if (!m)
+			continue;
+
+		if (m->streams.length == 0)
+			continue;
+
+		if (!ml->audio && m->type_id == MT_AUDIO)
+			if (allow_inactive || MEDIA_ISSET(m, SEND))
+				ml->audio = m;
+
+		if (ml->audio)
+			return;
+	}
+}
+
 const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_idx,
 		media_player_opts_t *opts, sdp_ng_flags *flags)
 {
@@ -1713,7 +1719,13 @@ const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_id
 	/* this starts the audio player if needed */
 	update_init_monologue_subscribers(ml, OP_PLAY_MEDIA);
 
-	if (ml->players[mp_idx] && ml->players[mp_idx]->opts.moh) {
+	set_monologue_media(ml, opts->moh);
+
+	struct call_media *audio = ml->audio;
+	if (!audio)
+		return "No suitable output for media playback";
+
+	if (audio->players[mp_idx] && audio->players[mp_idx]->opts.moh) {
 		ilog(LOG_DEBUG, "There is already ongoing media playback for MoH. Ignore new one.");
 		/* pretend that everything is good */
 		return NULL;
@@ -1721,11 +1733,13 @@ const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_id
 	else {
 		/* media_player_new() now knows that audio player is in use
 		* TODO: player options can have changed if already exists */
-		media_player_new(&ml->players[mp_idx], ml, NULL, opts);
+		media_player_new(&audio->players[mp_idx], audio, NULL, opts);
 	}
 
-	if (!media_player_play(ml->players[mp_idx], opts))
+	if (!media_player_play(audio->players[mp_idx], opts)) {
+		audio->players[mp_idx]->opts.moh = 0;
 		return "Failed to start media playback";
+	}
 
 	return NULL;
 #else
@@ -1733,17 +1747,29 @@ const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_id
 #endif
 }
 
+
+#ifdef WITH_TRANSCODING
+static long long call_stop_media(struct call_media *m, unsigned int mp_idx) {
+	if (!m)
+		return 0;
+	if (!m->players[mp_idx])
+		return 0;
+
+	long long ret = media_player_stop(m->players[mp_idx]);
+	/* restore to non-mixing if needed */
+	codec_update_media_source_handlers(m);
+	update_init_subscribers(m, NULL, NULL, OP_STOP_MEDIA);
+	/* mark MoH as already not used (it can be unset now) */
+	m->players[mp_idx]->opts.moh = 0;
+	return ret;
+}
+#endif
+
+
 long long call_stop_media_for_ml(struct call_monologue *ml, unsigned int mp_idx)
 {
 #ifdef WITH_TRANSCODING
-	if (!ml->players[mp_idx])
-		return 0;
-	long long ret = media_player_stop(ml->players[mp_idx]);
-	/* restore to non-mixing if needed */
-	codec_update_all_source_handlers(ml);
-	update_init_monologue_subscribers(ml, OP_STOP_MEDIA);
-	/* mark MoH as already not used (it can be unset now) */
-	ml->players[mp_idx]->opts.moh = 0;
+	long long ret = call_stop_media(ml->audio, mp_idx);
 	return ret;
 #else
 	return 0;
@@ -2052,12 +2078,12 @@ static void media_player_run(void *ptr) {
 }
 
 
-bool media_player_is_active(struct call_monologue *ml) {
-	if (!ml)
+bool media_player_is_active(struct call_media *m) {
+	if (!m)
 		return false;
-	if (!ml->players[MP_DEFAULT])
+	if (!m->players[MP_DEFAULT])
 		return false;
-	if (!ml->players[MP_DEFAULT]->next_run)
+	if (!m->players[MP_DEFAULT]->next_run)
 		return false;
 	return true;
 }

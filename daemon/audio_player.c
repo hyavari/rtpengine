@@ -112,7 +112,7 @@ bool audio_player_setup(struct call_media *m, const rtp_payload_type *dst_pt,
 	if (mp)
 		media_player_stop(mp);
 	else {
-		media_player_new(&mp, m->monologue, NULL, NULL);
+		media_player_new(&mp, m, NULL, NULL);
 		ap->mp = mp;
 	}
 	if (!mp)
@@ -170,7 +170,7 @@ void audio_player_start(struct call_media *m) {
 	if (!mp)
 		return;
 
-	media_player_set_media(mp, m);
+	media_player_set_sink(mp);
 
 	if (mp->next_run) // already running?
 		return;

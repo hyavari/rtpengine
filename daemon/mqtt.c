@@ -169,35 +169,6 @@ static void mqtt_monologue_stats(struct call_monologue *ml, JsonBuilder *json) {
 		json_builder_set_member_name(json, "label");
 		glib_json_builder_add_str(json, &ml->label);
 	}
-
-#ifdef WITH_TRANSCODING
-	struct media_player *mp = ml->players[MP_DEFAULT];
-	if (mp) {
-		mutex_lock(&mp->lock);
-
-		json_builder_set_member_name(json, "media_player");
-
-		json_builder_begin_object(json);
-
-		json_builder_set_member_name(json, "duration");
-		json_builder_add_int_value(json, mp->coder.duration);
-		json_builder_set_member_name(json, "repeat");
-		json_builder_add_int_value(json, mp->opts.repeat);
-		json_builder_set_member_name(json, "frame_time");
-		json_builder_add_int_value(json, mp->last_frame_ts);
-
-		if (mp->ssrc_out && mp->media) {
-			json_builder_set_member_name(json, "SSRC");
-			json_builder_begin_object(json);
-			mqtt_ssrc_stats(mp->ssrc_out, json, mp->media);
-			json_builder_end_object(json);
-		}
-
-		json_builder_end_object(json);
-
-		mutex_unlock(&mp->lock);
-	}
-#endif
 }
 
 
@@ -464,6 +435,35 @@ static void mqtt_media_stats(struct call_media *media, JsonBuilder *json) {
 	json_builder_end_object(json);
 
 	mutex_unlock(&media->ssrc_hash_out.lock);
+
+#ifdef WITH_TRANSCODING
+	struct media_player *mp = media->players[MP_DEFAULT];
+	if (mp) {
+		mutex_lock(&mp->lock);
+
+		json_builder_set_member_name(json, "media_player");
+
+		json_builder_begin_object(json);
+
+		json_builder_set_member_name(json, "duration");
+		json_builder_add_int_value(json, mp->coder.duration);
+		json_builder_set_member_name(json, "repeat");
+		json_builder_add_int_value(json, mp->opts.repeat);
+		json_builder_set_member_name(json, "frame_time");
+		json_builder_add_int_value(json, mp->last_frame_ts);
+
+		if (mp->ssrc_out && mp->media) {
+			json_builder_set_member_name(json, "SSRC");
+			json_builder_begin_object(json);
+			mqtt_ssrc_stats(mp->ssrc_out, json, mp->media);
+			json_builder_end_object(json);
+		}
+
+		json_builder_end_object(json);
+
+		mutex_unlock(&mp->lock);
+	}
+#endif
 
 	mqtt_stream_stats(ps, json);
 }

@@ -565,6 +565,7 @@ struct call_media {
 	struct t38_gateway	*t38_gateway;
 	struct audio_player	*audio_player;
 	struct codec_handler	*t38_handler;
+	struct media_player	*players[MP_COUNT];
 
 	unsigned int		buffer_delay;
 
@@ -632,9 +633,11 @@ struct call_monologue {
 	GHashTable		*subscribers_ht;	/* for quick lookup */
 	medias_arr		*medias;
 	media_id_ht		media_ids;
-	struct media_player	*players[MP_COUNT];
 	struct session_bandwidth sdp_session_bandwidth;
 	GString			*last_out_sdp;
+
+	// for media players
+	struct call_media	*audio;
 
 	sdp_origin		sdp_orig_in;	/* actual origin belonging to this monologue */
 	sdp_origin		sdp_orig_out;	/* previously used origin by other other side */
@@ -968,6 +971,7 @@ void call_media_state_machine(struct call_media *m);
 void call_media_unkernelize(struct call_media *media, const char *reason);
 void __monologue_unconfirm(struct call_monologue *monologue, const char *);
 void __media_unconfirm(struct call_media *media, const char *);
+
 __attribute__((nonnull(1)))
 /* one monologue's state from before an offer, held as a call record snapshot */
 struct call_checkpoint {
@@ -981,6 +985,10 @@ int call_checkpoint_rollback(call_t *, struct call_monologue *, struct call_mono
 void call_checkpoint_free_all(call_t *);
 
 void update_init_monologue_subscribers(struct call_monologue *ml, enum ng_opmode opmode);
+
+__attribute__((nonnull(1)))
+void update_init_subscribers(struct call_media *media, struct stream_params *sp,
+		sdp_ng_flags *flags, enum ng_opmode opmode);
 
 int call_stream_address(GString *, struct packet_stream *ps, enum stream_address_format format,
 		const struct local_intf *ifa, bool keep_unspec);

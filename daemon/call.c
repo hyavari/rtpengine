@@ -68,7 +68,6 @@ unsigned int call_socket_cpu_affinity = 0;
 static int64_t add_ongoing_calls_dur_in_interval(int64_t interval_start, int64_t interval_duration);
 static void __call_free(call_t *p);
 static void __call_cleanup(call_t *c);
-static void __monologue_stop(struct call_monologue *ml);
 __attribute__((nonnull(1, 2, 4)))
 static struct media_subscription *__subscribe_medias_both_ways(struct call_media * a, struct call_media * b,
 		bool is_offer, medias_q *);
@@ -2716,8 +2715,7 @@ static void __update_init_subscribers(struct call_media *media, struct stream_pa
 		mqtt_timer_start(&media->mqtt_timer, media->call, media);
 }
 
-__attribute__((nonnull(1)))
-static void update_init_subscribers(struct call_media *media, struct stream_params *sp,
+void update_init_subscribers(struct call_media *media, struct stream_params *sp,
 		sdp_ng_flags *flags, enum ng_opmode opmode)
 {
 	__update_init_subscribers(media, sp, flags, opmode, ++media->call->update_iter);
@@ -5186,6 +5184,8 @@ static void __call_cleanup(call_t *c) {
 		ice_shutdown(&md->ice_agent);
 		call_media_stop(md);
 		t38_gateway_put(&md->t38_gateway);
+		media_player_put(&md->players[MP_DEFAULT]);
+		media_player_put(&md->players[MP_REC]);
 		audio_player_free(md);
 		mutex_destroy(&md->dtmf_lock);
 		sdp_sp_clear(&md->sp);
@@ -5193,9 +5193,6 @@ static void __call_cleanup(call_t *c) {
 
 	for (__auto_type l = c->monologues.head; l; l = l->next) {
 		struct call_monologue *ml = l->data;
-		__monologue_stop(ml);
-		media_player_put(&ml->players[MP_DEFAULT]);
-		media_player_put(&ml->players[MP_REC]);
 		if (ml->tone_freqs)
 			g_array_free(ml->tone_freqs, true);
 		obj_release(ml->janus_session);
@@ -6428,25 +6425,21 @@ void call_media_stop(struct call_media *m) {
 	if (!m)
 		return;
 	t38_gateway_stop(m->t38_gateway);
+	media_player_stop(m->players[MP_DEFAULT]);
+	media_player_stop(m->players[MP_REC]);
 	audio_player_stop(m);
 	codec_handlers_stop(&m->codec_handlers_store, NULL, false);
 	rtcp_timer_stop(&m->rtcp_timer);
 	mqtt_timer_stop(&m->mqtt_timer);
 }
-/**
- * Stops media player of given monologue.
- */
-static void __monologue_stop(struct call_monologue *ml) {
-	media_player_stop(ml->players[MP_DEFAULT]);
-	media_player_stop(ml->players[MP_REC]);
-}
+
+
 /**
  * Stops media player and all medias of given monologue.
  * If asked, stops all media subscribers as well.
  */
 static void monologue_stop(struct call_monologue *ml, bool stop_media_subscribers) {
 	/* monologue itself */
-	__monologue_stop(ml);
 	for (unsigned int i = 0; i < ml->medias->len; i++)
 	{
 		call_media_stop(ml->medias->pdata[i]);
@@ -6458,10 +6451,8 @@ static void monologue_stop(struct call_monologue *ml, bool stop_media_subscriber
 			struct call_media *media = ml->medias->pdata[i];
 			if (!media)
 				continue;
-			IQUEUE_FOREACH(&media->media_subscribers, ms) {
+			IQUEUE_FOREACH(&media->media_subscribers, ms)
 				call_media_stop(ms->media);
-				__monologue_stop(ms->monologue);
-			}
 		}
 	}
 }

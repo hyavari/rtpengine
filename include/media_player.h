@@ -66,7 +66,6 @@ struct media_player {
 	mutex_t lock;
 	media_player_run_func run_func;
 	call_t *call;
-	struct call_monologue *ml;
 	struct call_media *media;
 	struct sink_handler sink;
 
@@ -122,16 +121,16 @@ struct send_timer {
 
 #define MPO(...) (media_player_opts_t){__VA_ARGS__}
 
-void media_player_new(struct media_player **, struct call_monologue *,
+void media_player_new(struct media_player **, struct call_media *,
 		struct ssrc_entry_call *prev_ssrc, media_player_opts_t *);
 bool media_player_play(struct media_player *mp, media_player_opts_t *opts);
 bool media_player_start(struct media_player *);
 long long media_player_stop(struct media_player *);
-bool media_player_is_active(struct call_monologue *);
+bool media_player_is_active(struct call_media *);
 
 int media_player_setup(struct media_player *mp, const rtp_payload_type *src_pt,
 		const rtp_payload_type *dst_pt, str_case_value_ht codec_set);
-void media_player_set_media(struct media_player *mp, struct call_media *media);
+void media_player_set_sink(struct media_player *mp);
 bool media_player_pt_match(const struct media_player *mp, const rtp_payload_type *src_pt,
 		const rtp_payload_type *dst_pt);
 

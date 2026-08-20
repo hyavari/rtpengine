@@ -345,8 +345,11 @@ static void recording_update_flags(call_t *call, bool streams) {
 
 static void rec_setup_monologue(struct call_monologue *ml) {
 	recording_setup_monologue(ml);
-	if (ml->players[MP_REC]) {
-		bool ret = media_player_start(ml->players[MP_REC]);
+	__auto_type audio = ml->audio;
+	if (!audio)
+		return;
+	if (audio->players[MP_REC]) {
+		bool ret = media_player_start(audio->players[MP_REC]);
 		if (!ret)
 			ilog(LOG_WARN, "Failed to start media player for recording announcement");
 	}
