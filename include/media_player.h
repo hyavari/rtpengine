@@ -53,7 +53,8 @@ typedef bool (*media_player_run_func)(struct media_player *);
 struct media_player_coder {
 	AVFormatContext *fmtctx;
 	AVStream *avstream;
-	unsigned long duration; // in milliseconds
+	int64_t duration; // in milliseconds
+	int64_t next_pts; // to adjust for duration/pts drift
 	AVPacket *pkt;
 	AVIOContext *avioctx;
 	str blob;
@@ -135,7 +136,7 @@ bool media_player_pt_match(const struct media_player *mp, const rtp_payload_type
 		const rtp_payload_type *dst_pt);
 
 void media_player_add_packet(struct media_player *mp, char *buf, size_t len,
-		int64_t us_dur, unsigned long long pts);
+		int64_t us_dur, int64_t pts);
 
 const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_idx,
 		media_player_opts_t *opts, sdp_ng_flags *flags);

@@ -500,20 +500,30 @@ typedef union {
 
 static void media_player_coder_add_packet(struct media_player_coder *c,
 		void (*fn)(media_player_coder_add_packet_arg p, char *buf, size_t len,
-		int64_t us_dur, unsigned long long pts), media_player_coder_add_packet_arg p) {
+		int64_t us_dur, int64_t pts), media_player_coder_add_packet_arg p)
+{
 	// scale pts and duration according to sample rate
 
-	int64_t duration_scaled = c->pkt->duration * c->avstream->codecpar->sample_rate
-		* c->avstream->time_base.num / c->avstream->time_base.den;
 	unsigned long long pts_scaled = c->pkt->pts * c->avstream->codecpar->sample_rate
 		* c->avstream->time_base.num / c->avstream->time_base.den;
 
-	int64_t us_dur = c->pkt->duration * 1000000LL * c->avstream->time_base.num
+	int64_t duration = c->pkt->duration;
+
+	// adjust for drift caused by rounding in the duration
+	int64_t pts_drift = c->pkt->pts - c->next_pts;
+	duration += pts_drift;
+	c->next_pts = c->pkt->pts + duration;
+
+	int64_t duration_scaled = duration * c->avstream->codecpar->sample_rate
+		* c->avstream->time_base.num / c->avstream->time_base.den;
+
+	int64_t us_dur = duration * 1000000LL * c->avstream->time_base.num
 		/ c->avstream->time_base.den;
-	ilog(LOG_DEBUG, "read media packet: pts %llu duration %lli (scaled %llu/%" PRId64 ", %" PRId64 " us), "
+
+	ilog(LOG_DEBUG, "read media packet: pts %llu duration %" PRId64 " (scaled %llu/%" PRId64 ", %" PRId64 " us), "
 			"sample rate %i, time_base %i/%i",
 			(unsigned long long) c->pkt->pts,
-			(long long) c->pkt->duration,
+			duration,
 			pts_scaled,
 			duration_scaled,
 			us_dur,
@@ -790,7 +800,7 @@ static bool media_player_cache_get_entry(struct media_player *mp,
 }
 
 static void media_player_cache_packet(struct media_player_cache_entry *entry, char *buf, size_t len,
-		int64_t us_dur, unsigned long long pts)
+		int64_t us_dur, int64_t pts)
 {
 	// synthesise fake RTP header and media_packet context
 
@@ -1074,7 +1084,7 @@ static int __ensure_codec_handler(struct media_player *mp, const rtp_payload_typ
 
 // appropriate lock must be held
 void media_player_add_packet(struct media_player *mp, char *buf, size_t len,
-		int64_t us_dur, unsigned long long pts)
+		int64_t us_dur, int64_t pts)
 {
 	// synthesise fake RTP header and media_packet context
 
