@@ -2003,7 +2003,7 @@ const char *call_play_media_ng(ng_command_ctx_t *ctx) {
 
 		ilog(LOG_DEBUG, "Requesting play media");
 
-		err = call_play_media_for_ml(monologue, &opts, &flags);
+		err = call_play_media_for_ml(monologue, MP_DEFAULT, &opts, &flags);
 		if (err)
 			return err;
 
@@ -2041,7 +2041,7 @@ const char *call_stop_media_ng(ng_command_ctx_t *ctx) {
 		if (monologue->players[MP_DEFAULT]->opts.moh)
 			return "Currently MoH ongoing, ignore stop media.";
 
-		last_frame_pos = call_stop_media_for_ml(monologue);
+		last_frame_pos = call_stop_media_for_ml(monologue, MP_DEFAULT);
 	}
 	parser->dict_add_int(ctx->resp, "last-frame-pos", last_frame_pos);
 

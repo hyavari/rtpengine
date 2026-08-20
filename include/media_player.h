@@ -138,9 +138,9 @@ bool media_player_pt_match(const struct media_player *mp, const rtp_payload_type
 void media_player_add_packet(struct media_player *mp, char *buf, size_t len,
 		int64_t us_dur, unsigned long long pts);
 
-const char *call_play_media_for_ml(struct call_monologue *ml,
+const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_idx,
 		media_player_opts_t *opts, sdp_ng_flags *flags);
-long long call_stop_media_for_ml(struct call_monologue *ml);
+long long call_stop_media_for_ml(struct call_monologue *ml, unsigned int mp_idx);
 const char *call_check_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,
 	sdp_ng_flags *flags);
 

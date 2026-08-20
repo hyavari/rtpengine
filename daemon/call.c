@@ -2871,10 +2871,11 @@ static void __call_monologue_init_from_flags(struct call_monologue *ml, struct c
 				.blob = flags->blob,
 				.db_id = flags->db_id,
 			);
-		media_player_new(&ml->players[MP_REC], ml, NULL, &opts);
 
-		if (!media_player_play(ml->players[MP_REC], &opts))
-			ilog(LOG_WARN, "Failed to add media player for recording announcement");
+		const char *err = call_play_media_for_ml(ml, MP_REC, &opts, NULL);
+
+		if (err)
+			ilog(LOG_WARN, "Failed to add media player for recording announcement (%s)", err);
 	}
 #endif
 }
