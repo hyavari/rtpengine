@@ -1564,7 +1564,7 @@ bool media_player_play(struct media_player *mp, media_player_opts_t *opts) {
  * When to_ml is given, check MoH capabilities of it,
  * because then an offerer wants to use them instead of its own (from_ml).
  */
-bool call_ml_wants_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,
+static bool call_ml_wants_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,
 		enum ng_opmode opmode)
 {
 	struct call_monologue *ml = to_ml ? : from_ml;
@@ -1577,7 +1577,7 @@ bool call_ml_wants_moh(struct call_monologue *from_ml, struct call_monologue *to
 	return false;
 }
 
-bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,
+static bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monologue *to_ml,
 		enum ng_opmode opmode)
 {
 #ifdef WITH_TRANSCODING
@@ -1598,7 +1598,7 @@ bool call_ml_stops_moh(struct call_monologue *from_ml, struct call_monologue *to
  *  Sets the sendrecv state for the first found subscription media with a sendonly state
  *  and audio type.
  */
-void call_ml_moh_handle_flags(struct call_monologue *from_ml, struct call_monologue *to_ml) {
+static void call_ml_moh_handle_flags(struct call_monologue *from_ml, struct call_monologue *to_ml) {
 #ifdef WITH_TRANSCODING
 
 	/* if from_ml not given, then it's a reflected MoH, use capabilities of to_ml */
