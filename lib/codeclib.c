@@ -877,7 +877,7 @@ int packetizer_samplestream(AVPacket *pkt, GString *buf, str *input_output, size
 }
 
 
-void codeclib_key_value_parse(const str *instr, bool need_value,
+void codeclib_key_value_parse(const str *instr,
 		void (*cb)(str *key, str *value, void *data), void *data)
 {
 	if (!instr || !instr->s)
@@ -887,11 +887,8 @@ void codeclib_key_value_parse(const str *instr, bool need_value,
 	str s = *instr;
 	str key, value;
 	while (str_token_sep(&value, &s, ';')) {
-		if (!str_token(&key, &value, '=')) {
-			if (need_value)
-				continue;
-			value = STR_NULL;
-		}
+		if (!str_token(&key, &value, '='))
+			continue;
 
 		// truncate whitespace
 		while (key.len && key.s[0] == ' ')

@@ -658,7 +658,7 @@ static bool evs_format_parse(struct rtp_codec_format *f, const str *fmtp) {
 	f->parsed.evs.max_bw_recv = EVS_BW_UNSPEC;
 	f->parsed.evs.min_bw_recv = EVS_BW_UNSPEC;
 
-	codeclib_key_value_parse(fmtp, true, evs_parse_format_cb, &f->parsed);
+	codeclib_key_value_parse(fmtp, evs_parse_format_cb, &f->parsed);
 	return true;
 }
 static void evs_format_answer(struct rtp_payload_type *p, const struct rtp_payload_type *src) {

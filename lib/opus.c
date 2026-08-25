@@ -178,7 +178,7 @@ static const char *libopus_encoder_init(encoder_t *enc, const str *extra_opts) {
 	}
 
 	struct libopus_encoder_options opts = { .vbr = 1, .complexity = 10, .application = OPUS_APPLICATION_VOIP };
-	codeclib_key_value_parse(extra_opts, true, libopus_set_enc_opts, &opts);
+	codeclib_key_value_parse(extra_opts, libopus_set_enc_opts, &opts);
 
 	int err;
 	enc->opus = opus_encoder_create(enc->requested_format.clockrate, enc->requested_format.channels,
@@ -359,7 +359,7 @@ static void opus_parse_format_cb(str *key, str *token, void *data) {
 	}
 }
 static bool opus_format_parse(struct rtp_codec_format *f, const str *fmtp) {
-	codeclib_key_value_parse(fmtp, true, opus_parse_format_cb, &f->parsed);
+	codeclib_key_value_parse(fmtp, opus_parse_format_cb, &f->parsed);
 	return true;
 }
 static GString *opus_format_print(const struct rtp_payload_type *p) {

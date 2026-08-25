@@ -126,7 +126,7 @@ static bool amr_format_parse(struct rtp_codec_format *f, const str *fmtp) {
 	// CRC, no robust-sorting, no interleaving). Parse whatever is present. Absent fields keep their
 	// defaults.
 	if (fmtp && fmtp->len)
-		codeclib_key_value_parse(fmtp, true, amr_parse_format_cb, f);
+		codeclib_key_value_parse(fmtp, amr_parse_format_cb, f);
 	return true;
 }
 static void amr_set_encdec_options(codec_options_t *opts, codec_def_t *def) {
@@ -165,7 +165,7 @@ static void amr_set_enc_codec_options(str *key, str *value, void *data) {
 static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 	amr_set_encdec_options(&enc->codec_options, enc->def);
 
-	codeclib_key_value_parse(codec_opts, true, amr_set_enc_codec_options, enc);
+	codeclib_key_value_parse(codec_opts, amr_set_enc_codec_options, enc);
 
 	// if a mode-set was given, pick the highest supported bitrate
 	if (enc->format_options.amr.mode_set) {
@@ -195,7 +195,7 @@ static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 }
 static void amr_set_dec_options(decoder_t *dec, const str *codec_opts) {
 	amr_set_encdec_options(&dec->codec_options, dec->def);
-	codeclib_key_value_parse(codec_opts, true, amr_set_dec_codec_options, dec);
+	codeclib_key_value_parse(codec_opts, amr_set_dec_codec_options, dec);
 }
 static int amr_mode_set_cmp(unsigned int a, unsigned int b) {
 	if (a && b) {
