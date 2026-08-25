@@ -2577,6 +2577,7 @@ c=IN IP4 203.0.113.1
 a=rtpmap:96 VP8/90000
 a=fmtp:96 max-fr:30;max-fs:1800
 a=rtpmap:97 VP9/90000
+a=fmtp:97 max-fr:30;max-fs:1800;profile-id=0
 a=sendrecv
 a=rtcp:PORT
 SDP
