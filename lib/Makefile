@@ -14,6 +14,7 @@ endif
 SRCS := auxlib.c bencode.c bufferpool.c codeclib.c dtmflib.c
 SRCS += http.c loglib.c mix_buffer.c
 SRCS += netfilter_api.c oauth.c poller.c resample.c
+SRCS += rescale.c
 SRCS += rtplib.c s3utils.c socket.c
 SRCS += ssllib.c str.c streambuf.c uring.c
 SRCS += avc.c

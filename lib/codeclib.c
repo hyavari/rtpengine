@@ -4,6 +4,7 @@
 #include "str.h"
 #include "loglib.h"
 #include "resample.h"
+#include "rescale.h"
 #include "rtplib.h"
 #include "dtmflib.h"
 #include "fix_frame_channel_layout.compat"
@@ -232,6 +233,8 @@ void decoder_close(decoder_t *dec) {
 	decoder_switch_dtx(dec, -1);
 
 	resample_shutdown(&dec->resampler);
+	rescale_shutdown(&dec->rescaler);
+
 	g_free(dec);
 }
 

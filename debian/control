@@ -42,6 +42,7 @@ Build-Depends:
  libspandsp-dev <!pkg.ngcp-rtpengine.no-transcoding>,
  libssl-dev (>= 1.0.1),
  libswresample-dev <!pkg.ngcp-rtpengine.no-transcoding>,
+ libswscale-dev <!pkg.ngcp-rtpengine.no-transcoding>,
  libsystemd-dev,
  libtest2-suite-perl,
  liburing-dev (>= 2.3) <!pkg.ngcp-rtpengine.nouring>,

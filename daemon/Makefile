@@ -30,6 +30,7 @@ CFLAGS += $(CFLAGS_LIBAVCODEC)
 CFLAGS += $(CFLAGS_LIBAVFORMAT)
 CFLAGS += $(CFLAGS_LIBAVUTIL)
 CFLAGS += $(CFLAGS_LIBSWRESAMPLE)
+CFLAGS += $(CFLAGS_LIBSWSCALE)
 CFLAGS += $(CFLAGS_LIBAVFILTER)
 CFLAGS += $(CFLAGS_SPANDSP)
 CFLAGS += $(CFLAGS_OPUS)
@@ -63,6 +64,7 @@ LDLIBS += $(LDLIBS_LIBAVCODEC)
 LDLIBS += $(LDLIBS_LIBAVFORMAT)
 LDLIBS += $(LDLIBS_LIBAVUTIL)
 LDLIBS += $(LDLIBS_LIBSWRESAMPLE)
+LDLIBS += $(LDLIBS_LIBSWSCALE)
 LDLIBS += $(LDLIBS_LIBAVFILTER)
 LDLIBS += $(LDLIBS_SPANDSP)
 LDLIBS += $(LDLIBS_OPUS)
@@ -93,6 +95,7 @@ LIBSRCS := loglib.c auxlib.c rtplib.c str.c socket.c streambuf.c ssllib.c dtmfli
 		bufferpool.c bencode.c netfilter_api.c
 ifeq ($(with_transcoding),yes)
 LIBSRCS += codeclib.c resample.c cchain.c
+LIBSRCS += rescale.c
 LIBSRCS += $(CODEC_SRCS)
 LIBASM := mvr2s_x64_avx2.S mvr2s_x64_avx512.S mix_in_x64_avx2.S mix_in_x64_avx512bw.S mix_in_x64_sse2.S
 endif

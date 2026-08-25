@@ -58,6 +58,7 @@ typedef GString *format_print_f(const struct rtp_payload_type *);
 #include <stdbool.h>
 #include <libswresample/swresample.h>
 #include <libavcodec/avcodec.h>
+#include <libavfilter/avfilter.h>
 #include <libavutil/audio_fifo.h>
 #ifdef HAVE_BCG729
 #include <bcg729/encoder.h>
@@ -85,6 +86,7 @@ struct decoder_s;
 struct encoder_s;
 struct format_s;
 struct resample_s;
+struct rescale_s;
 struct seq_packet_s;
 struct rtp_payload_type;
 union codec_options_u;
@@ -97,6 +99,7 @@ typedef struct decoder_s decoder_t;
 typedef struct encoder_s encoder_t;
 typedef struct format_s format_t;
 typedef struct resample_s resample_t;
+typedef struct rescale_s rescale_t;
 typedef struct seq_packet_s seq_packet_t;
 typedef union codec_options_u codec_options_t;
 typedef struct encoder_callback_s encoder_callback_t;
@@ -272,6 +275,18 @@ struct resample_s {
 	bool no_filter;
 };
 
+struct rescale_s {
+	AVFilterGraph *filter;
+	AVFilterContext *src,
+			*scale,
+			*pad,
+			*format,
+			*sink;
+	format_t from_format;
+	format_t to_format;
+	format_t aspect_format;
+};
+
 enum codec_event {
 	CE_AMR_CMR_RECV,
 	CE_AMR_SEND_CMR,
@@ -305,6 +320,7 @@ struct decoder_s {
 		 dest_format;
 
 	resample_t resampler;
+	rescale_t rescaler;
 
 	union {
 		struct {

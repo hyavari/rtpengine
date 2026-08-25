@@ -90,6 +90,7 @@ if [ "${with_transcoding:-yes}" = yes ]; then
   gen-pkgconf-flags LIBAVFORMAT         libavformat
   gen-pkgconf-flags LIBAVUTIL           libavutil
   gen-pkgconf-flags LIBSWRESAMPLE       libswresample
+  gen-pkgconf-flags LIBSWSCALE          libswscale
   gen-pkgconf-flags SPANDSP             spandsp
 fi
 

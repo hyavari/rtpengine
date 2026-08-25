@@ -14,6 +14,7 @@ CFLAGS += $(CFLAGS_LIBAVCODEC)
 CFLAGS += $(CFLAGS_LIBAVFORMAT)
 CFLAGS += $(CFLAGS_LIBAVUTIL)
 CFLAGS += $(CFLAGS_LIBSWRESAMPLE)
+CFLAGS += $(CFLAGS_LIBSWSCALE)
 CFLAGS += $(CFLAGS_LIBAVFILTER)
 CFLAGS += $(CFLAGS_OPUS)
 CFLAGS += $(CFLAGS_MYSQL)
@@ -28,6 +29,7 @@ LDLIBS += $(LDLIBS_LIBAVCODEC)
 LDLIBS += $(LDLIBS_LIBAVFORMAT)
 LDLIBS += $(LDLIBS_LIBAVUTIL)
 LDLIBS += $(LDLIBS_LIBSWRESAMPLE)
+LDLIBS += $(LDLIBS_LIBSWSCALE)
 LDLIBS += $(LDLIBS_LIBAVFILTER)
 LDLIBS += $(LDLIBS_OPUS)
 LDLIBS += $(LDLIBS_MYSQL)
@@ -43,6 +45,7 @@ SRCS := epoll.c garbage.c inotify.c main.c metafile.c stream.c recaux.c packet.c
 		gcs.c
 LIBSRCS := loglib.c auxlib.c rtplib.c codeclib.c resample.c str.c socket.c streambuf.c ssllib.c \
 		dtmflib.c bufferpool.c bencode.c http.c s3utils.c oauth.c cchain.c
+LIBSRCS += rescale.c
 LIBSRCS += $(CODEC_SRCS)
 LIBASM := mvr2s_x64_avx2.S mvr2s_x64_avx512.S mix_in_x64_avx2.S mix_in_x64_avx512bw.S mix_in_x64_sse2.S
 

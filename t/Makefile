@@ -27,6 +27,7 @@ CFLAGS += $(CFLAGS_LIBAVCODEC)
 CFLAGS += $(CFLAGS_LIBAVFORMAT)
 CFLAGS += $(CFLAGS_LIBAVUTIL)
 CFLAGS += $(CFLAGS_LIBSWRESAMPLE)
+CFLAGS += $(CFLAGS_LIBSWSCALE)
 CFLAGS += $(CFLAGS_LIBAVFILTER)
 CFLAGS += $(CFLAGS_SPANDSP)
 CFLAGS += $(CFLAGS_OPUS)
@@ -55,6 +56,7 @@ LDLIBS += $(LDLIBS_LIBAVCODEC)
 LDLIBS += $(LDLIBS_LIBAVFORMAT)
 LDLIBS += $(LDLIBS_LIBAVUTIL)
 LDLIBS += $(LDLIBS_LIBSWRESAMPLE)
+LDLIBS += $(LDLIBS_LIBSWSCALE)
 LDLIBS += $(LDLIBS_LIBAVFILTER)
 LDLIBS += $(LDLIBS_SPANDSP)
 LDLIBS += $(LDLIBS_OPUS)
@@ -322,6 +324,7 @@ test-mix-buffer:	test-mix-buffer.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/poller.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	../lib/socket.o \
 	../lib/uring.o \
 	log.o
@@ -347,6 +350,7 @@ test-amr-decode: test-amr-decode.o \
 	../lib/mvr2s_x64_avx2.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	log.o
 
 test-amr-encode: test-amr-encode.o \
@@ -360,6 +364,7 @@ test-amr-encode: test-amr-encode.o \
 	../lib/mvr2s_x64_avx2.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	log.o
 
 test-dtmf-detect: test-dtmf-detect.o
@@ -427,6 +432,7 @@ test-stats:	test-stats.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/poller.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	../lib/socket.o \
 	../lib/streambuf.o \
 	../lib/uring.o \
@@ -494,6 +500,7 @@ test-transcode:	test-transcode.o \
 	../lib/poller.o \
 	../lib/pseudo.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	../lib/socket.o \
 	../lib/streambuf.o \
 	../lib/uring.o \
@@ -507,6 +514,7 @@ test-sequencer:	test-sequencer.o \
 	../lib/codeclib.o \
 	../lib/dtmflib.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	log.o
 
 test-resample:	test-resample.o \
@@ -519,6 +527,7 @@ test-resample:	test-resample.o \
 	../lib/mvr2s_x64_avx2.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	log.o
 
 test-payload-tracker: test-payload-tracker.o \
@@ -537,6 +546,7 @@ test-payload-tracker: test-payload-tracker.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/poller.o \
 	../lib/resample.o \
+	../lib/rescale.o \
 	../lib/socket.o \
 	../lib/uring.o \
 	log.o
