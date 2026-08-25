@@ -390,7 +390,8 @@ static const char *json_list_iter(const ng_parser_t *parser, JsonNode *list,
 		JsonNode *n = json_array_get_element(a, i);
 		const char *err = NULL;
 		if (json_node_get_node_type(n) == JSON_NODE_VALUE
-				&& json_node_get_value_type(n) == G_TYPE_STRING)
+				&& json_node_get_value_type(n) == G_TYPE_STRING
+				&& str_callback)
 		{
 			const char *s = json_node_get_string(n);
 			if (s)
