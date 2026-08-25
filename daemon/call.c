@@ -6750,7 +6750,7 @@ static bool monologue_call_create_media(struct call_monologue *ml, sdp_ng_flags 
 	codec_store_create(&m->codecs, codecs);
 	codec_store_strip(&m->codecs, &flags->codec_strip, flags->codec_except);
 
-	if (m->type_id == MT_AUDIO)
+	if (m->type_id == MT_AUDIO || m->type_id == MT_VIDEO)
 		codec_store_synthesise_basic(&m->codecs, "create media");
 
 	__generate_crypto(flags, m, NULL);
