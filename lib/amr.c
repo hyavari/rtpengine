@@ -153,7 +153,7 @@ static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 
 	// if a mode-set was given, pick the highest supported bitrate
 	if (enc->format_options.amr.mode_set) {
-		int max_bitrate = enc->avc.avcctx->bit_rate;
+		int max_bitrate = enc->bitrate;
 		int use_bitrate = 0;
 		for (int i = 0; i < AMR_FT_TYPES; i++) {
 			if (!(enc->format_options.amr.mode_set & (1 << i)))
@@ -173,7 +173,7 @@ static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 		else {
 			ilog(LOG_DEBUG, "Using %i as initial %s bitrate based on mode-set",
 					use_bitrate, enc->def->rtpname);
-			enc->avc.avcctx->bit_rate = use_bitrate;
+			enc->bitrate = use_bitrate;
 		}
 	}
 }

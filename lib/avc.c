@@ -35,12 +35,13 @@ const char *avc_decoder_init(decoder_t *dec, const str *extra_opts) {
 	dec->avc.avcctx = avcodec_alloc_context3(codec);
 	if (!dec->avc.avcctx)
 		return "failed to alloc codec context";
-	SET_CHANNELS(dec->avc.avcctx, dec->in_format.channels);
-	DEF_CH_LAYOUT(&dec->avc.avcctx->CH_LAYOUT, dec->in_format.channels);
-	dec->avc.avcctx->sample_rate = dec->in_format.clockrate;
 
 	if (dec->def->set_dec_options)
 		dec->def->set_dec_options(dec, extra_opts);
+
+	SET_CHANNELS(dec->avc.avcctx, dec->in_format.channels);
+	DEF_CH_LAYOUT(&dec->avc.avcctx->CH_LAYOUT, dec->in_format.channels);
+	dec->avc.avcctx->sample_rate = dec->in_format.clockrate;
 
 	int i = avcodec_open2(dec->avc.avcctx, codec, NULL);
 	if (i) {
@@ -202,15 +203,15 @@ const char *avc_encoder_init(encoder_t *enc, const str *extra_opts) {
 	ilogs(internals, LOG_DEBUG, "using output sample format %s for codec %s",
 			av_get_sample_fmt_name(enc->actual_format.format), enc->avc.codec->name);
 
+	if (enc->def->set_enc_options)
+		enc->def->set_enc_options(enc, extra_opts);
+
 	SET_CHANNELS(enc->avc.avcctx, enc->actual_format.channels);
 	DEF_CH_LAYOUT(&enc->avc.avcctx->CH_LAYOUT, enc->actual_format.channels);
 	enc->avc.avcctx->sample_rate = enc->actual_format.clockrate;
 	enc->avc.avcctx->sample_fmt = enc->actual_format.format;
 	enc->avc.avcctx->time_base = (AVRational){1,enc->actual_format.clockrate};
 	enc->avc.avcctx->bit_rate = enc->bitrate;
-
-	if (enc->def->set_enc_options)
-		enc->def->set_enc_options(enc, extra_opts);
 
 	int i = avcodec_open2(enc->avc.avcctx, enc->avc.codec, NULL);
 	if (i) {
