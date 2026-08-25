@@ -3,18 +3,6 @@
 #include "bitstr.h"
 
 
-static int codeclib_set_av_opt_intstr(encoder_t *enc, const char *opt, str *val) {
-	int i = val ? str_to_i(val, -1) : -1;
-	if (i == -1) {
-		ilog(LOG_WARN, "Failed to parse '" STR_FORMAT "' as integer value for ffmpeg option '%s'",
-				STR_FMT0(val), opt);
-		return -1;
-	}
-	return codeclib_set_av_opt_int(enc, opt, i);
-}
-
-
-
 static const unsigned int amr_bitrates[AMR_FT_TYPES] = {
 	4750, // 0
 	5150, // 1
@@ -155,12 +143,8 @@ static void amr_set_enc_codec_options(str *key, str *value, void *data) {
 		; // not an encoder option
 	else if (!str_cmp(key, "mode-change-interval"))
 		; // not an encoder option
-	else {
-		// our string might not be null terminated
-		char *s = g_strdup_printf(STR_FORMAT, STR_FMT(key));
-		codeclib_set_av_opt_intstr(enc, s, value);
-		g_free(s);
-	}
+	else
+		codeclib_set_av_opt_intstr(enc, key, value);
 }
 static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 	amr_set_encdec_options(&enc->codec_options, enc->def);

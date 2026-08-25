@@ -27,6 +27,7 @@ int avc_encoder_input(encoder_t *enc, AVFrame **frame);
 void avc_encoder_close(encoder_t *enc);
 
 int codeclib_set_av_opt_int(encoder_t *enc, const char *opt, int64_t val);
+int codeclib_set_av_opt_intstr(encoder_t *enc, const str *opt, const str *val);
 void codeclib_key_value_parse(const str *instr,
 		void (*cb)(str *key, str *value, void *data), void *data);
 

@@ -316,6 +316,18 @@ int codeclib_set_av_opt_int(encoder_t *enc, const char *opt, int64_t val) {
 }
 
 
+int codeclib_set_av_opt_intstr(encoder_t *enc, const str *opt, const str *val) {
+	g_autoptr(char) s = g_strdup_printf(STR_FORMAT, STR_FMT(opt));
+	int i = val ? str_to_i(val, -1) : -1;
+	if (i == -1) {
+		ilog(LOG_WARN, "Failed to parse '" STR_FORMAT "' as integer value for ffmpeg option '%s'",
+				STR_FMT0(val), s);
+		return -1;
+	}
+	return codeclib_set_av_opt_int(enc, s, i);
+}
+
+
 codec_def_t *codec_def_make_generic_av(enum AVCodecID id) {
 	{
 		RWLOCK_R(&generic_ffmpeg_codecs_lock);
