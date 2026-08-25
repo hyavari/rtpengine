@@ -20,6 +20,7 @@ CODEC_SRCS += g711.c g723.c g722.c qcelp.c g729.c speex.c gsm.c ilbc.strhash.c o
 CODEC_SRCS += evs.strhash.c vorbis.c ac3.c atrac.c evrc.c amr.strhash.c pseudo.c
 CODEC_SRCS += g726.c l16.c u8.c mp3.c
 CODEC_SRCS += avc.c
+CODEC_SRCS += vp8.c
 endif
 
 LDFLAGS += -pie
