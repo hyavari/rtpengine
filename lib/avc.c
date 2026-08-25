@@ -3,6 +3,7 @@
 #include <libavformat/avformat.h>
 #include <libavfilter/avfilter.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include "loglib.h"
 #include "fix_frame_channel_layout.compat"
 
@@ -42,6 +43,11 @@ const char *avc_decoder_init(decoder_t *dec, const str *extra_opts) {
 	SET_CHANNELS(dec->avc.avcctx, dec->in_format.channels);
 	DEF_CH_LAYOUT(&dec->avc.avcctx->CH_LAYOUT, dec->in_format.channels);
 	dec->avc.avcctx->sample_rate = dec->in_format.clockrate;
+	dec->avc.avcctx->time_base = (AVRational){1, dec->in_format.time_base ?: dec->in_format.clockrate};
+
+	dec->avc.avcctx->width = dec->in_format.width;
+	dec->avc.avcctx->height = dec->in_format.height;
+	//dec->avc.avcctx->pix_fmt = dec->in_format.pix_fmt;
 
 	int i = avcodec_open2(dec->avc.avcctx, codec, NULL);
 	if (i) {
@@ -51,13 +57,19 @@ const char *avc_decoder_init(decoder_t *dec, const str *extra_opts) {
 
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 19, 0)
 	avcodec_get_supported_config(dec->avc.avcctx, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0, (const void **) &dec->avc.sample_fmts, NULL);
+	avcodec_get_supported_config(dec->avc.avcctx, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **) &dec->avc.pixel_fmts, NULL);
 #else
 	dec->avc.sample_fmts = codec->sample_fmts;
+	dec->avc.pixel_fmts = dec->avc.codec->pix_fmts;
 #endif
 
 	for (const enum AVSampleFormat *sfmt = dec->avc.sample_fmts; sfmt && *sfmt != -1; sfmt++)
 		ilogs(internals, LOG_DEBUG, "supported sample format for input codec %s: %s",
 				codec->name, av_get_sample_fmt_name(*sfmt));
+
+	for (const enum AVPixelFormat *pfmt = dec->avc.pixel_fmts; pfmt && *pfmt != -1; pfmt++)
+		ilogs(internals, LOG_DEBUG, "supported pixel format for input codec %s: %s",
+				codec->name, av_get_pix_fmt_name(*pfmt));
 
 	return NULL;
 }
@@ -125,8 +137,10 @@ int avc_decoder_input(decoder_t *dec, const str *data, frame_q *out, bool mark) 
 		}
 
 		if (got_frame) {
-			ilogs(internals, LOG_DEBUG, "raw frame from decoder pts %llu samples %u",
-					(unsigned long long) frame->pts, frame->nb_samples);
+			ilogs(internals, LOG_DEBUG, "raw frame from decoder pts %llu samples %u WxH %dx%d fmt %d",
+					(unsigned long long) frame->pts, frame->nb_samples,
+					frame->width, frame->height,
+					frame->format);
 
 			if (G_UNLIKELY(frame->pts == AV_NOPTS_VALUE))
 				frame->pts = dec->avc.avpkt->pts;
@@ -187,21 +201,37 @@ const char *avc_encoder_init(encoder_t *enc, const str *extra_opts) {
 
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 19, 0)
 	avcodec_get_supported_config(enc->avc.avcctx, enc->avc.codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0, (const void **) &enc->avc.sample_fmts, NULL);
+	avcodec_get_supported_config(enc->avc.avcctx, enc->avc.codec, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **) &enc->avc.pixel_fmts, NULL);
 #else
 	enc->avc.sample_fmts = enc->avc.codec->sample_fmts;
+	enc->avc.pixel_fmts = enc->avc.codec->pix_fmts;
 #endif
 
 	enc->actual_format.format = -1;
+	enc->actual_format.pix_fmt = -1;
+
 	for (const enum AVSampleFormat *sfmt = enc->avc.sample_fmts; sfmt && *sfmt != -1; sfmt++) {
 		ilogs(internals, LOG_DEBUG, "supported sample format for output codec %s: %s",
 				enc->avc.codec->name, av_get_sample_fmt_name(*sfmt));
 		if (*sfmt == enc->requested_format.format)
 			enc->actual_format.format = *sfmt;
 	}
+	for (const enum AVPixelFormat *pfmt = enc->avc.pixel_fmts; pfmt && *pfmt != -1; pfmt++) {
+		ilogs(internals, LOG_DEBUG, "supported pixel format for output codec %s: %s",
+				enc->avc.codec->name, av_get_pix_fmt_name(*pfmt));
+		if (*pfmt == enc->requested_format.pix_fmt)
+			enc->actual_format.pix_fmt = *pfmt;
+	}
+
 	if (enc->actual_format.format == -1 && enc->avc.sample_fmts)
 		enc->actual_format.format = enc->avc.sample_fmts[0];
-	ilogs(internals, LOG_DEBUG, "using output sample format %s for codec %s",
-			av_get_sample_fmt_name(enc->actual_format.format), enc->avc.codec->name);
+	if (enc->actual_format.pix_fmt == -1 && enc->avc.pixel_fmts)
+		enc->actual_format.pix_fmt = enc->avc.pixel_fmts[0];
+
+	ilogs(internals, LOG_DEBUG, "using output formats %s/%s for codec %s",
+			av_get_sample_fmt_name(enc->actual_format.format),
+			av_get_pix_fmt_name(enc->actual_format.pix_fmt),
+			enc->avc.codec->name);
 
 	if (enc->def->set_enc_options)
 		enc->def->set_enc_options(enc, extra_opts);
@@ -210,7 +240,12 @@ const char *avc_encoder_init(encoder_t *enc, const str *extra_opts) {
 	DEF_CH_LAYOUT(&enc->avc.avcctx->CH_LAYOUT, enc->actual_format.channels);
 	enc->avc.avcctx->sample_rate = enc->actual_format.clockrate;
 	enc->avc.avcctx->sample_fmt = enc->actual_format.format;
-	enc->avc.avcctx->time_base = (AVRational){1,enc->actual_format.clockrate};
+
+	enc->avc.avcctx->height = enc->actual_format.height;
+	enc->avc.avcctx->width = enc->actual_format.width;
+	enc->avc.avcctx->pix_fmt = enc->actual_format.pix_fmt;
+
+	enc->avc.avcctx->time_base = (AVRational){1, enc->actual_format.time_base ?: enc->actual_format.clockrate};
 	enc->avc.avcctx->bit_rate = enc->bitrate;
 
 	int i = avcodec_open2(enc->avc.avcctx, enc->avc.codec, NULL);

@@ -1068,6 +1068,8 @@ static int __ensure_codec_handler(struct media_player *mp, const rtp_payload_typ
 	src_pt.encoding = src_pt.codec_def->rtpname_str;
 	src_pt.channels = GET_CHANNELS(mp->coder.avstream->codecpar);
 	src_pt.clock_rate = mp->coder.avstream->codecpar->sample_rate;
+	src_pt.width = mp->coder.avstream->codecpar->width;
+	src_pt.height = mp->coder.avstream->codecpar->height;
 
 	codec_init_payload_type(&src_pt, mp->media->type_id);
 

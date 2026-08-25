@@ -4500,9 +4500,13 @@ static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 	ch->bytes_per_packet = (ch->encoder->samples_per_packet ?: ch->encoder->samples_per_frame)
 		* h->dest_pt.codec_def->bits_per_sample / 8;
 
-	ilogs(codec, LOG_DEBUG, "Encoder created with clockrate %i, %i channels, using sample format %i "
+	ilogs(codec, LOG_DEBUG, "Encoder created with clockrate %i, %i channels using sample format %i, "
+			"or size %dx%d, using pixel format %d "
 			"(ptime %i for %i samples per frame and %i samples (%zu bytes) per packet, bitrate %i)",
-			ch->encoder_format.clockrate, ch->encoder_format.channels, ch->encoder_format.format,
+			ch->encoder_format.clockrate, ch->encoder_format.channels,
+			ch->encoder_format.format,
+			ch->encoder_format.width, ch->encoder_format.height,
+			ch->encoder_format.pix_fmt,
 			ch->ptime, ch->encoder->samples_per_frame, ch->encoder->samples_per_packet,
 			ch->bytes_per_packet, ch->bitrate);
 

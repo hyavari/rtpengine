@@ -134,6 +134,7 @@ decoder_t *decoder_new_fmtp(codec_def_t *def, const format_t *src_fmt, int ptime
 
 	ret->in_format = *src_fmt;
 	ret->in_format.format = -1;
+	ret->in_format.pix_fmt = -1;
 
 	// output defaults to same as input
 	ret->dest_format = ret->in_format;
@@ -148,6 +149,8 @@ decoder_t *decoder_new_fmtp(codec_def_t *def, const format_t *src_fmt, int ptime
 		def->select_decoder_format(ret, fmtp);
 
 	ret->in_format.clockrate = fraction_mult(ret->in_format.clockrate, &ret->clockrate_fact);
+	ret->in_format.time_base = fraction_mult(ret->in_format.time_base, &ret->clockrate_fact);
+
 	ret->dec_out_format = ret->in_format;
 
 	if (ptime > 0)
@@ -410,6 +413,8 @@ void codeclib_init(int print) {
 			def->default_clockrate = -1;
 		if (!def->default_channels)
 			def->default_channels = -1;
+		if (!def->default_fps && def->media_type == MT_VIDEO)
+			def->default_fps = 30;
 
 		// init RFC-related info
 		const struct rtp_payload_type *pt = rtp_get_rfc_codec(&def->rtpname_str);
@@ -661,6 +666,7 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 		def->select_encoder_format(enc, &requested_format, input_format, fmtp);
 
 	requested_format.clockrate = fraction_mult(requested_format.clockrate, &enc->clockrate_fact);
+	requested_format.time_base = fraction_mult(requested_format.time_base, &enc->clockrate_fact);
 
 	// anything to do?
 	if (G_LIKELY(format_eq(&requested_format, &enc->requested_format))) {
