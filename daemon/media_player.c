@@ -1278,10 +1278,12 @@ static bool media_player_play_start(struct media_player *mp, const rtp_payload_t
 	// if start_pos is positive, try to seek to that position
 	if (mp->opts.start_pos > 0) {
 		ilog(LOG_DEBUG, "Seeking to position %lli", mp->opts.start_pos);
-		ret = av_seek_frame(mp->coder.fmtctx, 0, mp->opts.start_pos, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
+		ret = av_seek_frame(mp->coder.fmtctx, mp->coder.avstream->index,
+				mp->opts.start_pos, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
 	}
 	else // in case this is a repeated start
-		ret = av_seek_frame(mp->coder.fmtctx, 0, 0, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
+		ret = av_seek_frame(mp->coder.fmtctx, mp->coder.avstream->index,
+				0, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
 
 	if (ret < 0)
 		ilog(LOG_ERR, "Failed to seek to beginning of media file");
