@@ -1159,7 +1159,19 @@ static bool media_player_read_packet(struct media_player *mp) {
 	if (!mp->coder.fmtctx)
 		return true;
 
-	int ret = av_read_frame(mp->coder.fmtctx, mp->coder.pkt);
+	int ret;
+
+	while (true) {
+		ret = av_read_frame(mp->coder.fmtctx, mp->coder.pkt);
+
+		if (ret != 0)
+			break;
+		if (mp->coder.pkt->stream_index == mp->coder.avstream->index)
+			break;
+
+		av_packet_unref(mp->coder.pkt);
+	}
+
 	if (ret < 0) {
 		if (ret == AVERROR_EOF) {
 			/* Duration counter cannot underflow and is always aligned to 0 when used.
@@ -1254,12 +1266,27 @@ static bool media_player_play_start(struct media_player *mp, const rtp_payload_t
 	int ret = 0;
 
 	// needed to have usable duration for some formats. ignore errors.
-	if (!mp->coder.fmtctx->streams || !mp->coder.fmtctx->streams[0])
+	if (!mp->coder.fmtctx->streams || !mp->coder.fmtctx->streams[0] || !mp->coder.fmtctx->nb_streams)
 		avformat_find_stream_info(mp->coder.fmtctx, NULL);
 
-	mp->coder.avstream = mp->coder.fmtctx->streams[0];
+	mp->coder.avstream = NULL;
+
+	for (unsigned int i = 0; i < mp->coder.fmtctx->nb_streams; i++) {
+		AVStream *st = mp->coder.fmtctx->streams[i];
+
+		if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO && mp->media->type_id == MT_AUDIO)
+			continue;
+
+		ilog(LOG_DEBUG, "Using stream #%u for " STR_FORMAT,
+					i, STR_FMT(&mp->media->type));
+		mp->coder.avstream = st;
+		break;
+
+	}
+
 	if (!mp->coder.avstream) {
-		ilog(LOG_ERR, "No AVStream present in format context");
+		ilog(LOG_ERR, "No usable " STR_FORMAT " media stream present in file",
+				STR_FMT(&mp->media->type));
 		return false;
 	}
 
