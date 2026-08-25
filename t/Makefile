@@ -90,7 +90,8 @@ include ../lib/common.Makefile
 	daemon-tests-bundle daemon-tests-dtls daemon-tests-rollback \
 	daemon-tests-rollback-redis \
 	daemon-tests-recording daemon-tests-create daemon-tests-alias \
-	daemon-tests-kernel-api
+	daemon-tests-kernel-api \
+	daemon-tests-video
 
 TESTS := test-bitstr aes-crypt aead-aes-crypt test-const_str_hash.strhash
 ifeq ($(with_transcoding),yes)
@@ -143,7 +144,8 @@ daemon-tests: daemon-tests-main daemon-tests-jb daemon-tests-pubsub daemon-tests
 	daemon-tests-recording daemon-tests-create \
 	daemon-tests-dtx daemon-tests-dtx-cn daemon-tests-dtx-no-shift \
 	daemon-tests-alias \
-	daemon-tests-kernel-api
+	daemon-tests-kernel-api \
+	daemon-tests-video
 
 daemon-test-deps:	tests-preload.so
 	$(MAKE) -C ../daemon
@@ -277,6 +279,9 @@ daemon-tests-t38:	daemon-test-deps spandsp_recv_fax_pcm spandsp_recv_fax_t38 \
 
 daemon-tests-evs-dtx:	daemon-test-deps
 	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-evs-dtx.pl
+
+daemon-tests-video:	daemon-test-deps
+	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-video.pl
 
 daemon-tests-codec-prefs:	daemon-test-deps
 	./auto-test-helper "$@" perl -I../perl auto-daemon-tests-codec-prefs.pl
