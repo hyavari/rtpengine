@@ -33,10 +33,14 @@ const char *avc_encoder_init(encoder_t *enc, const str *);
 int avc_encoder_input(encoder_t *enc, AVFrame **frame);
 void avc_encoder_close(encoder_t *enc);
 
+const char *avc_video_decoder_init(decoder_t *, const str *);
+int avc_video_encoder_input(encoder_t *enc, AVFrame **frame);
+
 int codeclib_set_av_opt_int(encoder_t *enc, const char *opt, int64_t val);
 int codeclib_set_av_opt_intstr(encoder_t *enc, const str *opt, const str *val);
 void codeclib_key_value_parse(const str *instr,
 		void (*cb)(str *key, str *value, void *data), void *data);
+void codeclib_avc_video_enc_options(str *key, str *value, void *encp);
 
 
 void codeclib_register_codec(const codec_def_t *);

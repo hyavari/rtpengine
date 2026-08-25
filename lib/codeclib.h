@@ -321,6 +321,7 @@ struct decoder_s {
 
 	resample_t resampler;
 	rescale_t rescaler;
+	GString *packet_buffer;
 
 	union {
 		struct {
@@ -350,6 +351,7 @@ struct decoder_s {
 	};
 
 	unsigned long rtp_ts;
+	unsigned long dec_ts;
 	uint64_t pts;
 	int ptime;
 
@@ -369,7 +371,11 @@ struct encoder_s {
 	union codec_format_options format_options;
 
 	resample_t resampler;
-	GString *sample_buffer;
+
+	union {
+		GString *sample_buffer;
+		str_q nals;
+	};
 
 	union {
 		struct {
@@ -403,6 +409,7 @@ struct encoder_s {
 	int64_t fifo_pts; // pts of first data in fifo
 	int64_t packet_pts; // first pts of data in packetizer buffer
 	int64_t next_pts; // next pts expected from the encoder
+	unsigned int frame_idx;
 	int ptime;
 	int bitrate;
 	int samples_per_frame; // for encoding

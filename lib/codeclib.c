@@ -728,6 +728,7 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 	else
 		ilog(LOG_DEBUG, "Initialized encoder without frame buffer");
 
+	enc->frame_idx = ssl_random();
 
 done:
 	if (actual_format)
@@ -784,7 +785,7 @@ static int encoder_input_direct(encoder_t *enc, AVFrame *frame,
 		if (enc->avpkt->size) {
 			// don't rely on the encoder producing steady timestamps,
 			// instead keep track of them ourselves based on the returned
-			// frame duration
+			// frame duration (for audio)
 			enc->avpkt->pts = enc->next_pts;
 
 			if (enc->def->codec_type->encoder_got_packet)
@@ -792,7 +793,7 @@ static int encoder_input_direct(encoder_t *enc, AVFrame *frame,
 
 			callback(enc, u1, u2);
 
-			enc->next_pts += enc->avpkt->duration;
+			enc->next_pts += enc->avpkt->duration; // zero for video
 			enc->mux_dts = enc->avpkt->dts + 1; // min next expected dts
 
 			av_packet_unref(enc->avpkt);

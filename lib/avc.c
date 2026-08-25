@@ -25,6 +25,16 @@ const codec_type_t codec_type_avcodec = {
 	.encoder_close = avc_encoder_close,
 };
 
+const codec_type_t codec_type_video_avcodec = {
+	.def_init = avc_def_init,
+	.decoder_init = avc_video_decoder_init,
+	.decoder_input = avc_decoder_input,
+	.decoder_close = avc_decoder_close,
+	.encoder_init = avc_encoder_init,
+	.encoder_input = avc_encoder_input,
+	.encoder_close = avc_encoder_close,
+};
+
 
 const char *avc_decoder_init(decoder_t *dec, const str *extra_opts) {
 	const AVCodec *codec = dec->def->decoder;
@@ -75,9 +85,20 @@ const char *avc_decoder_init(decoder_t *dec, const str *extra_opts) {
 }
 
 
+const char *avc_video_decoder_init(decoder_t *dec, const str *extra_opts) {
+	dec->packet_buffer = g_string_sized_new(8192);
+
+	return avc_decoder_init(dec, extra_opts);
+}
+
+
 void avc_decoder_close(decoder_t *dec) {
 	avcodec_free_context(&dec->avc.avcctx);
 	av_packet_free(&dec->avc.avpkt);
+	if (dec->packet_buffer) {
+		g_string_free(dec->packet_buffer, true);
+		dec->packet_buffer = NULL;
+	}
 }
 
 
@@ -362,6 +383,28 @@ int codeclib_set_av_opt_intstr(encoder_t *enc, const str *opt, const str *val) {
 		return -1;
 	}
 	return codeclib_set_av_opt_int(enc, s, i);
+}
+
+
+void codeclib_avc_video_enc_options(str *key, str *value, void *encp) {
+	encoder_t *enc = encp;
+
+	if (str_eq(key, "h"))
+		enc->actual_format.height = str_to_i(value, enc->actual_format.height);
+	else if (str_eq(key, "w"))
+		enc->actual_format.width = str_to_i(value, enc->actual_format.width);
+	else
+		codeclib_set_av_opt_intstr(enc, key, value);
+}
+
+
+int avc_video_encoder_input(encoder_t *enc, AVFrame **frame) {
+	int ret = avc_encoder_input(enc, frame);
+	if (ret < 0)
+		return ret;
+	if (enc->avpkt)
+		enc->next_pts = enc->avpkt->pts;
+	return ret;
 }
 
 
