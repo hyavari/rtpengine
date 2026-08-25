@@ -413,7 +413,7 @@ bool codec_parse_fmtp(codec_def_t *def, struct rtp_codec_format *fmtp, const str
 
 decoder_t *decoder_new_fmt(codec_def_t *def, int clockrate, int channels, int ptime,
 		const format_t *resample_fmt);
-decoder_t *decoder_new_fmtp(codec_def_t *def, int clockrate, int channels, int ptime,
+decoder_t *decoder_new_fmtp(codec_def_t *def, const format_t *src_fmt, int ptime,
 		const format_t *resample_fmt,
 		struct rtp_codec_format *fmtp, const str *fmtp_string, const str *codec_opts);
 void decoder_close(decoder_t *dec);

@@ -66,10 +66,15 @@ decode_t *decoder_new(const char *payload_str, const char *format, int ptime) {
 		.channels = channels,
 		.format = AV_SAMPLE_FMT_S16,
 	};
+	format_t dec_format = (format_t) {
+		.clockrate = rtp_clockrate,
+		.channels = channels,
+		.format = -1,
+	};
 
 	str fmtp = STR(format);
 
-	decoder_t *dec = decoder_new_fmtp(def, rtp_clockrate, channels, ptime, &out_format, NULL, &fmtp, NULL);
+	decoder_t *dec = decoder_new_fmtp(def, &dec_format, ptime, &out_format, NULL, &fmtp, NULL);
 	if (!dec)
 		return NULL;
 	decode_t *deco = g_new0(decode_t, 1);

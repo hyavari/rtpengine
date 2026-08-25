@@ -64,7 +64,7 @@ static void do_test_amr_xx(const char *file, int line,
 	str fmtp = STR_NULL;
 	if (fmtp_s)
 		fmtp = STR(fmtp_s);
-	decoder_t *d = decoder_new_fmtp(def, clockrate, 1, 0, &fmt, NULL, NULL, &fmtp);
+	decoder_t *d = decoder_new_fmtp(def, &fmt, 0, &fmt, NULL, NULL, &fmtp);
 	assert(d);
 	const str data = STR_LEN(data_s, data_len);
 	int ret = decoder_input_data(d, &data, 1, false, frame_cb, &args, NULL);

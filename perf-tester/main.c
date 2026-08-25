@@ -523,7 +523,7 @@ static void new_stream_params(
 				NULL, NULL, NULL);
 		assert(res == 0); // TODO: handle failures gracefully
 
-		s->decoder = decoder_new_fmtp(in_def, dec_format.clockrate, dec_format.channels, 20,
+		s->decoder = decoder_new_fmtp(in_def, &dec_format, 20,
 				&actual_enc_format, NULL, NULL, NULL); // TODO: support different options (fmtp etc)
 		assert(s->decoder != NULL); // TODO: handle failures gracefully
 	}

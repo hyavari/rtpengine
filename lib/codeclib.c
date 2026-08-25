@@ -75,7 +75,12 @@ codec_def_t *codec_get_pcm16(void) {
 decoder_t *decoder_new_fmt(codec_def_t *def, int clockrate, int channels, int ptime,
 		const format_t *resample_fmt)
 {
-	return decoder_new_fmtp(def, clockrate, channels, ptime, resample_fmt, NULL, NULL, NULL);
+	return decoder_new_fmtp(def,
+			&(format_t) {
+				.clockrate = clockrate,
+				.channels = channels,
+			},
+			ptime, resample_fmt, NULL, NULL, NULL);
 }
 
 bool codec_parse_fmtp(codec_def_t *def, struct rtp_codec_format *fmtp, const str *fmtp_string,
@@ -110,7 +115,7 @@ bool codec_parse_fmtp(codec_def_t *def, struct rtp_codec_format *fmtp, const str
 	return ret;
 }
 
-decoder_t *decoder_new_fmtp(codec_def_t *def, int clockrate, int channels, int ptime,
+decoder_t *decoder_new_fmtp(codec_def_t *def, const format_t *src_fmt, int ptime,
 		const format_t *resample_fmt,
 		struct rtp_codec_format *fmtp, const str *fmtp_string,
 		const str *extra_opts)
@@ -126,9 +131,9 @@ decoder_t *decoder_new_fmtp(codec_def_t *def, int clockrate, int channels, int p
 
 	ret->def = def;
 	ret->clockrate_fact = def->default_clockrate_fact;
-	format_init(&ret->in_format);
-	ret->in_format.channels = channels;
-	ret->in_format.clockrate = clockrate;
+
+	ret->in_format = *src_fmt;
+	ret->in_format.format = -1;
 
 	// output defaults to same as input
 	ret->dest_format = ret->in_format;

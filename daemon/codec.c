@@ -4381,6 +4381,7 @@ static void async_chain_finish(AVPacket *pkt, void *async_cb_obj) {
 }
 
 static bool __ssrc_handler_decode_common(struct codec_ssrc_handler *ch, struct codec_handler *h,
+		const format_t *dec_format,
 		const format_t *enc_format)
 {
 	if (h->pcm_dtmf_detect) {
@@ -4393,7 +4394,7 @@ static bool __ssrc_handler_decode_common(struct codec_ssrc_handler *ch, struct c
 			dtmf_rx_set_realtime_callback(ch->dtmf_dsp, __dtmf_dsp_callback, ch);
 	}
 
-	ch->decoder = decoder_new_fmtp(h->source_pt.codec_def, h->source_pt.clock_rate, h->source_pt.channels,
+	ch->decoder = decoder_new_fmtp(h->source_pt.codec_def, dec_format,
 			h->source_pt.ptime,
 			enc_format, &h->source_pt.format,
 			&h->source_pt.format_parameters, &h->source_pt.codec_opts);
@@ -4480,7 +4481,7 @@ static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 				&h->dest_pt.codec_opts))
 		goto err;
 
-	if (!__ssrc_handler_decode_common(ch, h, &ch->encoder_format))
+	if (!__ssrc_handler_decode_common(ch, h, &dec_format, &ch->encoder_format))
 		goto err;
 
 	ch->bytes_per_packet = (ch->encoder->samples_per_packet ?: ch->encoder->samples_per_frame)
@@ -4515,7 +4516,13 @@ static struct ssrc_entry *__ssrc_handler_decode_new(void *p) {
 		.format = AV_SAMPLE_FMT_S16,
 	};
 
-	if (!__ssrc_handler_decode_common(ch, h, &dest_format))
+	format_t dec_format = {
+		.clockrate = h->source_pt.clock_rate,
+		.channels = h->source_pt.channels,
+		.format = -1,
+	};
+
+	if (!__ssrc_handler_decode_common(ch, h, &dec_format, &dest_format))
 		goto err;
 
 	return &ch->h;
