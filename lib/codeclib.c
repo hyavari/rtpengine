@@ -245,7 +245,7 @@ static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long t
 	if (!data && (!dec->dtx.do_dtx || !ptime))
 		return 0;
 
-	ts = fraction_mult(ts, &dec->clockrate_fact);
+	ts = fraction_multl(ts, &dec->clockrate_fact);
 
 	cdbg("%p dec pts %llu rtp_ts %llu incoming ts %lu", dec, (unsigned long long) dec->pts,
 			(unsigned long long) dec->rtp_ts, (unsigned long) ts);
@@ -852,7 +852,7 @@ int packetizer_samplestream(AVPacket *pkt, GString *buf, str *input_output, size
 		if (pkt->size > num_bytes) {
 			g_string_append_len(buf, (char *) pkt->data + num_bytes,
 					pkt->size - num_bytes);
-			*duration = fraction_mult(num_bytes * 8, &enc->clockrate_fact)
+			*duration = fraction_multl(num_bytes * 8, &enc->clockrate_fact)
 				/ enc->def->bits_per_sample;
 			enc->packet_pts = pkt->pts + *duration;
 		}
@@ -871,7 +871,7 @@ int packetizer_samplestream(AVPacket *pkt, GString *buf, str *input_output, size
 	g_string_erase(buf, 0, num_bytes);
 	// adjust output pts
 	*pts = enc->packet_pts;
-	*duration = fraction_mult(num_bytes * 8, &enc->clockrate_fact) / enc->def->bits_per_sample;
+	*duration = fraction_multl(num_bytes * 8, &enc->clockrate_fact) / enc->def->bits_per_sample;
 	enc->packet_pts += *duration;
 	return buf->len >= num_bytes ? 1 : 0;
 }
