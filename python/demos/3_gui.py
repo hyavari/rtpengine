@@ -36,6 +36,20 @@ parser.add_argument(
     "--rtpe", required=True, help="HTTP URI for rtpengine", metavar="HTTP-URI"
 )
 parser.add_argument(
+    "--uri",
+    required=False,
+    help="Default destination for outgoing calls",
+    default=None,
+    metavar="URI",
+)
+parser.add_argument(
+    "--file",
+    required=False,
+    help="Default media playback file",
+    default="263655_2064400-lq.mp3",
+    metavar="URI",
+)
+parser.add_argument(
     "--addr",
     required=False,
     help="Local SIP IP address to bind to (default 0.0.0.0)",
@@ -149,7 +163,7 @@ async def rtpe_req(req: dict) -> dict:
 
 
 async def do_call(uri: str) -> None:
-    global call_to_txt, codecs_txt
+    global call_to_txt, codecs_txt, video_chk, v_codecs_txt, width_txt, height_txt
 
     if not uri:
         await msgbox("missing destination URI")
@@ -161,14 +175,33 @@ async def do_call(uri: str) -> None:
     if not "@" in uri:
         uri = uri + f"@{args.domain}"
 
+    medias: typing.List[dict] = []
+
+    a_media = {"type": "audio"}
+    a_codecs: typing.List[str] = codecs_txt.value.split()
+    if a_codecs:
+        a_media["codecs"] = a_codecs
+
+    medias.append(a_media)
+
+    if video_chk.value:
+        v_media = {"type": "video"}
+        v_codecs: typing.List[str] = v_codecs_txt.value.split()
+        if v_codecs:
+            vr_codecs: typing.List[str] = []
+            w = width_txt.value
+            h = height_txt.value
+            for vc in v_codecs:
+                vr_codecs.append(f"{vc}//////w={w};h={h}")
+
+            v_media["codecs"] = vr_codecs
+
+        medias.append(v_media)
+
     req = {
         "command": "create",
+        "medias": medias,
     }
-
-    c: typing.List[str] = codecs_txt.value.split()
-
-    if c:
-        req["codec"] = {"offer": c}
 
     resp = await rtpe_req(req)
     if not resp:
@@ -227,12 +260,68 @@ call_to_btn = PushButton(
     text="Call to:",
     grid=[0, 0],
     enabled=False,
+    align="right",
 )
-call_to_txt = TextBox(call_to_box, width=80, grid=[1, 0])
+call_to_txt = TextBox(
+    call_to_box, width=80, grid=[1, 0], align="left", text=args.uri
+)
 
-Text(call_to_box, text="Codecs:", grid=[0, 1])
+Text(call_to_box, text="Audio codecs:", grid=[0, 1], align="right")
 codecs_txt = TextBox(
-    call_to_box, width=80, grid=[1, 1], text="opus AMR-WB G722 AMR PCMA PCMU"
+    call_to_box,
+    width=80,
+    grid=[1, 1],
+    text="opus AMR-WB G722 AMR PCMA PCMU",
+    align="left",
+)
+
+
+def do_video_chk() -> None:
+    global video_chk, v_codecs_lbl, v_codecs_txt, width_lbl, width_txt, height_lbl, height_txt
+
+    for el in (
+        v_codecs_lbl,
+        v_codecs_txt,
+        width_lbl,
+        width_txt,
+        height_lbl,
+        height_txt,
+    ):
+        el.enabled = video_chk.value
+
+
+video_chk = CheckBox(
+    call_to_box, text="with video", grid=[0, 2], command=do_video_chk
+)
+
+v_codecs_lbl = Text(
+    call_to_box,
+    text="Video codecs:",
+    grid=[0, 3],
+    align="right",
+    enabled=False,
+)
+v_codecs_txt = TextBox(
+    call_to_box,
+    width=80,
+    grid=[1, 3],
+    text="VP8 VP9",
+    align="left",
+    enabled=False,
+)
+
+width_lbl = Text(
+    call_to_box, text="Width:", grid=[0, 4], align="right", enabled=False
+)
+width_txt = TextBox(
+    call_to_box, width=8, grid=[1, 4], text="1280", align="left", enabled=False
+)
+
+height_lbl = Text(
+    call_to_box, text="Height:", grid=[0, 5], align="right", enabled=False
+)
+height_txt = TextBox(
+    call_to_box, width=8, grid=[1, 5], text="720", align="left", enabled=False
 )
 
 
@@ -365,7 +454,7 @@ play_btn = PushButton(
 )
 play_txt = TextBox(
     play_grid,
-    text="263655_2064400-lq.mp3",
+    text=args.file,
     grid=[1, 0],
     width=80,
 )
