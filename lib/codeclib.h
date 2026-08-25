@@ -252,7 +252,7 @@ struct codec_def_s {
 	const AVCodec *decoder;
 };
 
-codec_def_t *codec_def_make_generic_av(enum AVCodecID);
+codec_def_t *codec_def_make_generic_av(enum AVCodecID, enum media_type);
 
 
 struct format_s {

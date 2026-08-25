@@ -329,7 +329,7 @@ int codeclib_set_av_opt_intstr(encoder_t *enc, const str *opt, const str *val) {
 }
 
 
-codec_def_t *codec_def_make_generic_av(enum AVCodecID id) {
+codec_def_t *codec_def_make_generic_av(enum AVCodecID id, enum media_type type) {
 	{
 		RWLOCK_R(&generic_ffmpeg_codecs_lock);
 
