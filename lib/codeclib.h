@@ -199,6 +199,9 @@ struct codec_def_s {
 	const char *avcodec_name_dec;
 	int default_clockrate;
 	int default_channels;
+	int default_width;
+	int default_height;
+	int default_fps;
 	int default_bitrate;
 	int default_ptime;
 	int minimum_ptime;
@@ -254,6 +257,12 @@ struct format_s {
 	int clockrate;
 	int channels;
 	int format; // enum AVSampleFormat
+
+	int height;
+	int width;
+	int pix_fmt; // enum AVPixelFormat
+
+	int time_base; // sample rate, or fps
 };
 
 struct resample_s {

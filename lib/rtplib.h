@@ -102,9 +102,12 @@ struct rtp_payload_type {
 	str encoding_with_params; // "opus/48000/2"
 	str encoding_with_full_params; // "opus/48000/1"
 	str encoding; // "opus"
-	unsigned int clock_rate; // 48000
+	unsigned int clock_rate; // 48000 or 90000
 	str encoding_parameters; // "2"
 	int channels; // 2
+	int width;
+	int height;
+	unsigned int time_base; // 48000 or 30
 	str format_parameters; // value of a=fmtp
 	str codec_opts; // extra codec-specific options
 	GQueue rtcp_fb; // a=rtcp-fb:...

@@ -2985,10 +2985,16 @@ void codec_init_payload_type(rtp_payload_type *pt, enum media_type type) {
 	if (def) {
 		if (!pt->clock_rate)
 			pt->clock_rate = def->default_clockrate;
+		if (!pt->time_base)
+			pt->time_base = def->default_fps ?: pt->clock_rate;
 		if (!pt->channels)
 			pt->channels = def->default_channels;
 		if (pt->ptime <= 0)
 			pt->ptime = def->default_ptime;
+		if (!pt->height)
+			pt->height = def->default_height;
+		if (!pt->width)
+			pt->width = def->default_width;
 		if (!pt->format_parameters.s && def->default_fmtp)
 			pt->format_parameters = STR(def->default_fmtp);
 
@@ -4443,11 +4449,19 @@ static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 		.clockrate = h->source_pt.clock_rate,
 		.channels = h->source_pt.channels,
 		.format = -1,
+		.width = h->source_pt.width,
+		.height = h->source_pt.height,
+		.pix_fmt = -1,
+		.time_base = h->source_pt.time_base,
 	};
 	format_t enc_format = {
 		.clockrate = h->dest_pt.clock_rate,
 		.channels = h->dest_pt.channels,
 		.format = -1,
+		.width = h->dest_pt.width,
+		.height = h->dest_pt.height,
+		.pix_fmt = -1,
+		.time_base = h->dest_pt.time_base,
 	};
 
 	// see if there's a complete codec chain usable for this
@@ -5184,7 +5198,8 @@ static rtp_payload_type *codec_make_payload_type_sup(const str *codec_str, struc
 		goto err;
 	if (!ret->codec_def->support_encoding)
 		goto err;
-	if (ret->codec_def->default_channels <= 0 || ret->codec_def->default_clockrate < 0)
+	if ((ret->codec_def->default_channels <= 0 || ret->codec_def->default_clockrate < 0)
+			&& (ret->codec_def->default_width <= 0 || ret->codec_def->default_height < 0))
 		goto err;
 
 	return ret;
