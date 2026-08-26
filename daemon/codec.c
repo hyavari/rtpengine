@@ -9,6 +9,7 @@
 #include "log_d.h"
 #include "rtplib.h"
 #include "codeclib.h"
+#include "codecmod.h"
 #include "ssrc.h"
 #include "rtcp.h"
 #include "call_interfaces.h"
@@ -205,7 +206,6 @@ struct codec_ssrc_handler {
 	int ptime;
 	size_t bytes_per_packet;
 	struct codec_scheduler csch;
-	GString *sample_buffer;
 	struct dtx_buffer *dtx_buffer;
 	transcode_job_q async_jobs;
 	void (*codec_output_rtp_seq)(struct media_packet *mp, struct codec_scheduler *csch,
@@ -4369,7 +4369,7 @@ static void async_chain_finish(AVPacket *pkt, void *async_cb_obj) {
 		__ssrc_lock_both(&j->mp);
 
 		static const struct fraction chain_fact = {1,1};
-		packet_encoded_packetize(pkt, j->ch, &j->mp, packetizer_passthrough, NULL, &chain_fact,
+		packet_encoded_packetize(pkt, j->ch, &j->mp, &packetizer_passthrough, NULL, &chain_fact,
 				packet_encoded_tx);
 
 		__ssrc_unlock_both(&j->mp);
@@ -4436,8 +4436,7 @@ static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 	__auto_type ch = obj_alloc0(struct codec_ssrc_handler, __free_ssrc_handler);
 	ch->handler = h;
 	ch->ptime = h->dest_pt.ptime;
-	ch->sample_buffer = g_string_new("");
-	ch->bitrate = h->dest_pt.bitrate ? : h->dest_pt.codec_def->default_bitrate;
+	ch->bitrate = h->dest_pt.bitrate ?: h->dest_pt.codec_def->default_bitrate;
 	ch->codec_output_rtp_seq = codec_output_rtp_seq_passthrough;
 
 	format_t dec_format = {
@@ -4549,8 +4548,6 @@ static void __free_ssrc_handler(struct codec_ssrc_handler *ch) {
 		encoder_free(ch->encoder);
 	}
 	codec_cc_free(&ch->chain);
-	if (ch->sample_buffer)
-		g_string_free(ch->sample_buffer, TRUE);
 	if (ch->dtmf_dsp)
 		dtmf_rx_free(ch->dtmf_dsp);
 	resample_shutdown(&ch->dtmf_resampler);
@@ -4562,7 +4559,7 @@ static void __free_ssrc_handler(struct codec_ssrc_handler *ch) {
 
 
 void packet_encoded_packetize(AVPacket *pkt, struct codec_ssrc_handler *ch, struct media_packet *mp,
-		packetizer_f pkt_f, void *pkt_f_data, const struct fraction *cr_fact,
+		packetizer_t *pktzer, void *pkt_f_data, const struct fraction *cr_fact,
 		void (*tx_f)(struct codec_ssrc_handler *, struct media_packet *, str *,
 			char *, size_t, int64_t pts, int64_t duration,
 			const struct fraction *cr_fact))
@@ -4586,7 +4583,7 @@ void packet_encoded_packetize(AVPacket *pkt, struct codec_ssrc_handler *ch, stru
 		if (in_pkt)
 			ilogs(transcoding, LOG_DEBUG, "Adding %i bytes to packetizer", in_pkt->size);
 		int64_t pts, duration;
-		int ret = pkt_f(in_pkt, ch->sample_buffer, &inout, ch->bytes_per_packet, pkt_f_data, &pts,
+		int ret = pktzer->fn(in_pkt, &inout, ch->bytes_per_packet, pkt_f_data, &pts,
 				&duration);
 
 		if (G_UNLIKELY(ret == -1 || pts == AV_NOPTS_VALUE)) {
@@ -4855,7 +4852,7 @@ static tc_code __rtp_decode_direct(struct codec_ssrc_handler *ch, struct codec_s
 			AVPacket *pkt = codec_cc_input_data(ch->chain, packet->payload, packet->ts,
 					/* x, y, z: */ ch, input_ch, mp);
 			if (pkt) {
-				packet_encoded_packetize(pkt, ch, mp, packetizer_passthrough, NULL, &chain_fact,
+				packet_encoded_packetize(pkt, ch, mp, &packetizer_passthrough, NULL, &chain_fact,
 						packet_encoded_tx);
 				av_packet_unref(pkt);
 			}

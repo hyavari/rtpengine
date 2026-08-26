@@ -2,6 +2,9 @@
 #define _CODECMOD_H_
 
 
+#ifndef WITHOUT_CODECLIB
+
+
 #include "codeclib.h"
 
 
@@ -10,7 +13,11 @@ extern const codec_type_t codec_type_avcodec;
 extern const dtx_method_t dtx_method_silence;
 extern const dtx_method_t dtx_method_cn;
 
-packetizer_f packetizer_samplestream; // flat stream of samples
+void packetizer_buffered_init(encoder_t *enc);
+void packetizer_buffered_destroy(encoder_t *enc);
+
+extern packetizer_t packetizer_passthrough; // pass frames as they arrive in AVPackets
+extern packetizer_t packetizer_samplestream; // flat stream of samples
 
 int format_cmp_ignore(const struct rtp_payload_type *, const struct rtp_payload_type *);
 
@@ -35,4 +42,5 @@ void codeclib_key_value_parse(const str *instr,
 void codeclib_register_codec(const codec_def_t *);
 
 
+#endif
 #endif

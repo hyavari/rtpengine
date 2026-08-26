@@ -4,7 +4,7 @@
 static const codec_def_t u8 = {
 	.rtpname = "PCM-U8",
 	.avcodec_id = AV_CODEC_ID_PCM_U8,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_avcodec,
 };

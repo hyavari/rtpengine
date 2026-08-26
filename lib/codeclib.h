@@ -103,7 +103,7 @@ typedef struct encoder_callback_s encoder_callback_t;
 typedef struct dtx_method_s dtx_method_t;
 typedef struct codec_cc_s codec_cc_t;
 
-typedef int packetizer_f(AVPacket *, GString *, str *, size_t, encoder_t *,
+typedef int packetizer_f(AVPacket *, str *, size_t, encoder_t *,
 		int64_t *__restrict pts, int64_t *__restrict dur);
 typedef void format_init_f(struct rtp_payload_type *);
 typedef void set_enc_options_f(encoder_t *, const str *);
@@ -114,6 +114,12 @@ typedef void select_decoder_format_f(decoder_t *, const struct rtp_codec_format 
 
 typedef bool format_parse_f(struct rtp_codec_format *, const str *fmtp);
 typedef void format_answer_f(struct rtp_payload_type *, const struct rtp_payload_type *);
+
+typedef const struct {
+	void (*init)(encoder_t *);
+	packetizer_f *fn;
+	void (*destroy)(encoder_t *);
+} packetizer_t;
 
 
 TYPED_GQUEUE(frame, AVFrame);
@@ -201,7 +207,7 @@ struct codec_def_s {
 	format_cmp_f *format_cmp;
 	format_print_f *format_print;
 	format_answer_f *format_answer;
-	packetizer_f *packetizer;
+	packetizer_t *packetizer;
 	select_encoder_format_f *select_encoder_format;
 	select_decoder_format_f *select_decoder_format;
 	int bits_per_sample;
@@ -335,6 +341,7 @@ struct encoder_s {
 	union codec_format_options format_options;
 
 	resample_t resampler;
+	GString *sample_buffer;
 
 	union {
 		struct {
@@ -451,8 +458,6 @@ void *packet_sequencer_next_packet(packet_sequencer_t *ps);
 bool packet_sequencer_next_ok(packet_sequencer_t *ps);
 void *packet_sequencer_force_next_packet(packet_sequencer_t *ps);
 int packet_sequencer_insert(packet_sequencer_t *ps, seq_packet_t *);
-
-packetizer_f packetizer_passthrough; // pass frames as they arrive in AVPackets
 
 
 void frame_fill_tone_samples(enum AVSampleFormat fmt, void *samples, unsigned int offset, unsigned int num,

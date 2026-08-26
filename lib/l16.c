@@ -9,7 +9,7 @@ static const codec_def_t l16 = {
 	.default_ptime = 20,
 	.minimum_ptime = 20,
 	.bits_per_sample = 16,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_avcodec,
 };
@@ -21,7 +21,7 @@ static const codec_def_t x_l16 = {
 	.default_ptime = 20,
 	.minimum_ptime = 20,
 	.bits_per_sample = 16,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_avcodec,
 };

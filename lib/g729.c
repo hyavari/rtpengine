@@ -9,7 +9,7 @@ static const codec_def_t g729 = {
 	.default_channels = 1,
 	.default_ptime = 20,
 	.minimum_ptime = 20,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_avcodec,
 	.dtx_methods = {
@@ -26,7 +26,7 @@ static const codec_def_t g729a = {
 	.default_channels = 1,
 	.default_ptime = 20,
 	.minimum_ptime = 20,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_avcodec,
 	.dtx_methods = {
@@ -44,7 +44,13 @@ static const codec_def_t g729a = {
 #include "loglib.h"
 
 
-static packetizer_f packetizer_g729; // aggregate some frames into packets
+static packetizer_f packetizer_g729_fn; // aggregate some frames into packets
+
+packetizer_t packetizer_g729 = {
+	.init = packetizer_buffered_init,
+	.fn = packetizer_g729_fn,
+	.destroy = packetizer_buffered_destroy,
+};
 
 static void bcg729_def_init(struct codec_def_s *);
 static const char *bcg729_decoder_init(decoder_t *, const str *);
@@ -73,7 +79,7 @@ static const codec_def_t g729 = {
 	.minimum_ptime = 20,
 	.default_fmtp = "annexb=yes",
 	.format_cmp = format_cmp_ignore,
-	.packetizer = packetizer_g729,
+	.packetizer = &packetizer_g729,
 	.bits_per_sample = 1, // 10 ms frame has 80 samples and encodes as (max) 10 bytes = 80 bits
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_bcg729,
@@ -93,7 +99,7 @@ static const codec_def_t g729a = {
 	.minimum_ptime = 20,
 	.default_fmtp = "annexb=no",
 	.format_cmp = format_cmp_ignore,
-	.packetizer = packetizer_g729,
+	.packetizer = &packetizer_g729,
 	.bits_per_sample = 1, // 10 ms frame has 80 samples and encodes as (max) 10 bytes = 80 bits
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_bcg729,
@@ -209,15 +215,17 @@ static void bcg729_encoder_close(encoder_t *enc) {
 	enc->bcg729 = NULL;
 }
 
-static int packetizer_g729(AVPacket *pkt, GString *buf, str *input_output, size_t num_bytes, encoder_t *enc,
+static int packetizer_g729_fn(AVPacket *pkt, str *input_output, size_t num_bytes, encoder_t *enc,
 		int64_t *__restrict pts, int64_t *__restrict duration)
 {
+	GString *buf = enc->sample_buffer;
+
 	// how many frames do we want?
 	int want_frames = input_output->len / 10;
 
 	// easiest case: we only want one frame. return what we got
 	if (want_frames == 1 && pkt)
-		return packetizer_passthrough(pkt, buf, input_output, num_bytes, enc, pts, duration);
+		return packetizer_passthrough.fn(pkt, input_output, num_bytes, enc, pts, duration);
 
 	// any other case, we go through our buffer
 	str output = *input_output; // remaining output buffer

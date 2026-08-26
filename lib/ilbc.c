@@ -121,7 +121,7 @@ static const codec_def_t ilbc = {
 	.default_fmtp = "mode=30",
 	.format_parse = ilbc_format_parse,
 	//.default_bitrate = 15200,
-	.packetizer = packetizer_passthrough,
+	.packetizer = &packetizer_passthrough,
 	.media_type = MT_AUDIO,
 	.codec_type = &codec_type_ilbc,
 	.set_enc_options = ilbc_set_enc_options,

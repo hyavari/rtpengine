@@ -525,7 +525,7 @@ static void amr_encoder_got_packet(encoder_t *enc) {
 	amr_encoder_mode_change(enc);
 	enc->avc.amr.pkt_seq++;
 }
-static int packetizer_amr(AVPacket *pkt, GString *buf, str *output, size_t num_bytes, encoder_t *enc,
+static int packetizer_amr_fn(AVPacket *pkt, str *output, size_t num_bytes, encoder_t *enc,
 		int64_t *__restrict pts, int64_t *__restrict duration)
 {
 	assert(pkt->size >= 1);
@@ -603,6 +603,12 @@ static int packetizer_amr(AVPacket *pkt, GString *buf, str *output, size_t num_b
 
 	return 0;
 }
+
+packetizer_t packetizer_amr = {
+	.fn = packetizer_amr_fn,
+};
+
+
 static int amr_dtx(decoder_t *dec, frame_q *out, int ptime) {
 	// ignore ptime, must be 20
 	ilog(LOG_DEBUG, "pushing empty/lost frame to AMR decoder");
@@ -646,7 +652,7 @@ static const codec_def_t amr = {
 		.format_parse = amr_format_parse,
 		.format_cmp = amr_format_cmp,
 		.default_fmtp = "octet-align=1;mode-change-capability=2",
-		.packetizer = packetizer_amr,
+		.packetizer = &packetizer_amr,
 		.bits_per_sample = 2, // max is 12200 / 8000 = 1.525 bits per sample, rounded up
 		.media_type = MT_AUDIO,
 		.codec_type = &codec_type_amr,
@@ -673,7 +679,7 @@ static const codec_def_t amr_wb = {
 		.format_parse = amr_format_parse,
 		.format_cmp = amr_format_cmp,
 		.default_fmtp = "octet-align=1;mode-change-capability=2",
-		.packetizer = packetizer_amr,
+		.packetizer = &packetizer_amr,
 		.bits_per_sample = 2, // max is 23850 / 16000 = 1.490625 bits per sample, rounded up
 		.media_type = MT_AUDIO,
 		.codec_type = &codec_type_amr,

@@ -283,7 +283,7 @@ void check_codec_list(supp_ht *supplemental_sinks, rtp_payload_type **pref_dest_
 		struct call_media *sink);
 
 void packet_encoded_packetize(AVPacket *pkt, struct codec_ssrc_handler *ch, struct media_packet *mp,
-		packetizer_f pkt_f, void *pkt_f_data, const struct fraction *cr_fact,
+		packetizer_t *pktize, void *pkt_f_data, const struct fraction *cr_fact,
 		void (*tx_f)(struct codec_ssrc_handler *, struct media_packet *, str *,
 			char *, size_t, int64_t pts, int64_t duration,
 			const struct fraction *cr_fact));

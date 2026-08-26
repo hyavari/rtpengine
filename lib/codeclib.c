@@ -686,6 +686,9 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 	enc->ptime = ptime;
 	enc->bitrate = bitrate;
 
+	if (def->packetizer->init)
+		def->packetizer->init(enc);
+
 	err = def->codec_type->encoder_init ? def->codec_type->encoder_init(enc, extra_opts) : 0;
 	if (err)
 		goto err;
@@ -725,8 +728,12 @@ err:
 void encoder_close(encoder_t *enc) {
 	if (!enc)
 		return;
-	if (enc->def && enc->def->codec_type && enc->def->codec_type->encoder_close)
-		enc->def->codec_type->encoder_close(enc);
+	if (enc->def) {
+		if (enc->def->codec_type && enc->def->codec_type->encoder_close)
+			enc->def->codec_type->encoder_close(enc);
+		if (enc->def->packetizer->destroy)
+			enc->def->packetizer->destroy(enc);
+	}
 	format_init(&enc->requested_format);
 	format_init(&enc->actual_format);
 	av_audio_fifo_free(enc->fifo);
@@ -820,7 +827,7 @@ int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
 }
 
 
-int packetizer_passthrough(AVPacket *pkt, GString *buf, str *output, size_t num_bytes, encoder_t *enc,
+static int packetizer_passthrough_fn(AVPacket *pkt, str *output, size_t num_bytes, encoder_t *enc,
 		int64_t *__restrict pts, int64_t *__restrict duration)
 {
 	if (!pkt)
@@ -837,11 +844,18 @@ int packetizer_passthrough(AVPacket *pkt, GString *buf, str *output, size_t num_
 	return 0;
 }
 
+packetizer_t packetizer_passthrough = {
+	.fn = packetizer_passthrough_fn,
+};
+
+
 // returns: -1 = not enough data, nothing returned; 0 = returned a packet;
 // 1 = returned a packet and there's more
-int packetizer_samplestream(AVPacket *pkt, GString *buf, str *input_output, size_t num_bytes,
+static int packetizer_samplestream_fn(AVPacket *pkt, str *input_output, size_t num_bytes,
 		encoder_t *enc, int64_t *__restrict pts, int64_t *__restrict duration)
 {
+	GString *buf = enc->sample_buffer;
+
 	// avoid moving buffers around if possible:
 	// most common case: new input packet has just enough (or more) data as what we need
 	if (G_LIKELY(pkt && buf->len == 0 && pkt->size >= num_bytes)) {
@@ -875,6 +889,21 @@ int packetizer_samplestream(AVPacket *pkt, GString *buf, str *input_output, size
 	enc->packet_pts += *duration;
 	return buf->len >= num_bytes ? 1 : 0;
 }
+
+void packetizer_buffered_init(encoder_t *enc) {
+	enc->sample_buffer = g_string_sized_new(256);
+}
+
+void packetizer_buffered_destroy(encoder_t *enc) {
+	g_string_free(enc->sample_buffer, true);
+}
+
+
+packetizer_t packetizer_samplestream = {
+	.init = packetizer_buffered_init,
+	.fn = packetizer_samplestream_fn,
+	.destroy = packetizer_buffered_destroy,
+};
 
 
 void codeclib_key_value_parse(const str *instr,

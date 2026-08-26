@@ -20,12 +20,11 @@ static int dec_cb(encoder_t *e, void *u1, void *u2) {
 	assert(expect_len);
 	assert(*expect);
 
-	GString *buf = g_string_new("");
 	int plen = 256;
 	char payload[plen];
 	str inout = STR_LEN(payload, plen);
 	int64_t pts, dur;
-	e->def->packetizer(e->avpkt, buf, &inout, plen, e, &pts, &dur);
+	e->def->packetizer->fn(e->avpkt, &inout, plen, e, &pts, &dur);
 
 	if (inout.len != *expect_len
 			|| memcmp(inout.s, *expect, *expect_len))
@@ -44,7 +43,6 @@ static int dec_cb(encoder_t *e, void *u1, void *u2) {
 	*expect = NULL;
 	*expect_len = 0;
 
-	g_string_free(buf, TRUE);
 	return 0;
 }
 
