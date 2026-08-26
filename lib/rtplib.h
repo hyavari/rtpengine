@@ -84,6 +84,16 @@ union codec_format_options {
 
 		int minptime; // obsolete
 	} opus;
+
+	struct {
+		int packetization_mode:3;
+
+		int profile_idc:8;
+		int profile_iop:8;
+		int level_idc:8;
+
+		int level_asymmetry_allowed:1;
+	} h264;
 };
 
 struct rtp_codec_format {

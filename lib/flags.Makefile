@@ -22,6 +22,7 @@ CODEC_SRCS += g726.c l16.c u8.c mp3.c
 CODEC_SRCS += avc.c
 CODEC_SRCS += vp8.c
 CODEC_SRCS += vp9.c
+CODEC_SRCS += h264.c
 endif
 
 LDFLAGS += -pie

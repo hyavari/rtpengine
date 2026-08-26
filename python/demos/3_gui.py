@@ -305,7 +305,7 @@ v_codecs_txt = TextBox(
     call_to_box,
     width=80,
     grid=[1, 3],
-    text="VP8 VP9",
+    text="H264 VP8 VP9",
     align="left",
     enabled=False,
 )

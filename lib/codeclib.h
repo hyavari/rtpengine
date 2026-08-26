@@ -391,6 +391,8 @@ struct encoder_s {
 					unsigned int cmr_out_seq;
 					uint64_t pkt_seq;
 				} amr;
+
+				size_t nal_frag;
 			};
 		} avc;
 #ifdef HAVE_BCG729
