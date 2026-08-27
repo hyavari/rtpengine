@@ -69,7 +69,6 @@ static int64_t add_ongoing_calls_dur_in_interval(int64_t interval_start, int64_t
 static void __call_free(call_t *p);
 static void __call_cleanup(call_t *c);
 static void __monologue_stop(struct call_monologue *ml);
-static void media_stop(struct call_media *m);
 __attribute__((nonnull(1, 2, 4)))
 static struct media_subscription *__subscribe_medias_both_ways(struct call_media * a, struct call_media * b,
 		bool is_offer, medias_q *);
@@ -5184,7 +5183,7 @@ static void __call_cleanup(call_t *c) {
 	for (__auto_type l = c->medias.head; l; l = l->next) {
 		struct call_media *md = l->data;
 		ice_shutdown(&md->ice_agent);
-		media_stop(md);
+		call_media_stop(md);
 		t38_gateway_put(&md->t38_gateway);
 		audio_player_free(md);
 		mutex_destroy(&md->dtmf_lock);
@@ -5500,6 +5499,7 @@ static void __call_free(call_t *c) {
 
 	//ilog(LOG_DEBUG, "freeing main call struct");
 
+	call_checkpoint_free_all(c);
 	obj_release(c->dtls_cert);
 	mqtt_timer_stop(&c->mqtt_timer);
 
@@ -5749,6 +5749,9 @@ static bool call_merge(call_t *call, call_t *call2) {
 
 	// move buffers
 	bencode_buffer_merge(&call->buffer, &call2->buffer);
+
+	// the ids below are about to be renumbered, and a snapshot is keyed on them
+	call_checkpoint_free_all(call2);
 
 	// move all contained objects: we have to renumber all unique IDs, and redirect any
 	// `call` pointers
@@ -6420,7 +6423,7 @@ int call_get_mono_dialogue(struct call_monologue *monologues[2],
 	return call_get_dialogue(monologues, call, callid, fromtag, totag, viabranch, flags, ep);
 }
 
-static void media_stop(struct call_media *m) {
+void call_media_stop(struct call_media *m) {
 	if (!m)
 		return;
 	t38_gateway_stop(m->t38_gateway);
@@ -6445,7 +6448,7 @@ static void monologue_stop(struct call_monologue *ml, bool stop_media_subscriber
 	__monologue_stop(ml);
 	for (unsigned int i = 0; i < ml->medias->len; i++)
 	{
-		media_stop(ml->medias->pdata[i]);
+		call_media_stop(ml->medias->pdata[i]);
 	}
 	/* monologue's subscribers */
 	if (stop_media_subscribers) {
@@ -6455,7 +6458,7 @@ static void monologue_stop(struct call_monologue *ml, bool stop_media_subscriber
 			if (!media)
 				continue;
 			IQUEUE_FOREACH(&media->media_subscribers, ms) {
-				media_stop(ms->media);
+				call_media_stop(ms->media);
 				__monologue_stop(ms->monologue);
 			}
 		}
@@ -6869,5 +6872,68 @@ void call_q_unlock_release(call_q *calls) {
 		if (!call)
 			continue;
 		call_unlock_release(call);
+	}
+}
+
+
+static void checkpoint_clear_snapshot(struct call_checkpoint *cp) {
+	redis_snapshot_free(&cp->snapshot);
+	cp->pending = false;
+}
+
+static void checkpoint_offer_one(call_t *call, struct call_monologue *ml, bool enable) {
+	if (!ml)
+		return;
+	if (!ml->checkpoint) {
+		if (!enable)
+			return;
+		ml->checkpoint = g_new0(__typeof(*ml->checkpoint), 1);
+	}
+	// consecutive offers belong to the same uncommitted exchange: keep the
+	// committed snapshot, or a later rollback restores a rejected offer
+	if (ml->checkpoint->pending)
+		return;
+	checkpoint_clear_snapshot(ml->checkpoint);
+	ml->checkpoint->snapshot = redis_snapshot_encode(call, ml);
+	ml->checkpoint->pending = true;
+}
+
+void call_checkpoint_offer(call_t *call, struct call_monologue *offerer,
+		struct call_monologue *answerer, bool enable)
+{
+	// a dialogue is tracked if either side is, so both are checkpointed together
+	bool tracked = enable
+			|| (offerer && offerer->checkpoint)
+			|| (answerer && answerer->checkpoint);
+	checkpoint_offer_one(call, offerer, tracked);
+	checkpoint_offer_one(call, answerer, tracked);
+}
+
+static void checkpoint_commit_one(struct call_monologue *ml) {
+	if (ml && ml->checkpoint && ml->checkpoint->pending)
+		checkpoint_clear_snapshot(ml->checkpoint);
+}
+
+void call_checkpoint_answer(call_t *call, struct call_monologue *a, struct call_monologue *b) {
+	checkpoint_commit_one(a);
+	checkpoint_commit_one(b);
+}
+
+int call_checkpoint_rollback(call_t *call, struct call_monologue *a, struct call_monologue *b) {
+	if (!redis_snapshot_apply(call, a, b))
+		return 0;
+
+	call->last_signal_us = rtpe_now;
+	return 1;
+}
+
+void call_checkpoint_free_all(call_t *call) {
+	for (__auto_type l = call->monologues.head; l; l = l->next) {
+		struct call_monologue *ml = l->data;
+		if (!ml->checkpoint)
+			continue;
+		redis_snapshot_free(&ml->checkpoint->snapshot);
+		g_free(ml->checkpoint);
+		ml->checkpoint = NULL;
 	}
 }
