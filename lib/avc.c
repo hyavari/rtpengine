@@ -234,7 +234,8 @@ const char *avc_encoder_init(encoder_t *enc, const str *extra_opts) {
 			enc->avc.codec->name);
 
 	if (enc->def->set_enc_options)
-		enc->def->set_enc_options(enc, extra_opts);
+		if (!enc->def->set_enc_options(enc, extra_opts))
+			return "failed to set encoder options";
 
 	SET_CHANNELS(enc->avc.avcctx, enc->actual_format.channels);
 	DEF_CH_LAYOUT(&enc->avc.avcctx->CH_LAYOUT, enc->actual_format.channels);

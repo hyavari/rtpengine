@@ -109,7 +109,7 @@ typedef struct codec_cc_s codec_cc_t;
 typedef int packetizer_f(AVPacket *, str *, size_t, encoder_t *,
 		int64_t *__restrict pts, int64_t *__restrict dur);
 typedef void format_init_f(struct rtp_payload_type *);
-typedef void set_enc_options_f(encoder_t *, const str *);
+typedef bool set_enc_options_f(encoder_t *, const str *);
 typedef void set_dec_options_f(decoder_t *, const str *);
 typedef void select_encoder_format_f(encoder_t *, format_t *requested_format, const format_t *input_format,
 		const struct rtp_codec_format *fmtp);

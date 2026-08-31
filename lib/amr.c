@@ -145,7 +145,7 @@ static void amr_set_enc_codec_options(str *key, str *value, void *data) {
 	else
 		codeclib_set_av_opt_intstr(enc, key, value);
 }
-static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
+static bool amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 	amr_set_encdec_options(&enc->codec_options, enc->def);
 
 	codeclib_key_value_parse(codec_opts, amr_set_enc_codec_options, enc);
@@ -175,6 +175,8 @@ static void amr_set_enc_options(encoder_t *enc, const str *codec_opts) {
 			enc->bitrate = use_bitrate;
 		}
 	}
+
+	return true;
 }
 static void amr_set_dec_options(decoder_t *dec, const str *codec_opts) {
 	amr_set_encdec_options(&dec->codec_options, dec->def);

@@ -52,9 +52,10 @@ static int ilbc_mode(int ptime, const union codec_format_options *fmtp, const ch
 	return mode;
 }
 
-static void ilbc_set_enc_options(encoder_t *enc, const str *codec_opts) {
+static bool ilbc_set_enc_options(encoder_t *enc, const str *codec_opts) {
 	int mode = ilbc_mode(enc->ptime, &enc->format_options, "encoder");
 	codeclib_set_av_opt_int(enc, "mode", mode);
+	return true;
 }
 
 static void ilbc_set_dec_options(decoder_t *dec, const str *codec_opts) {
