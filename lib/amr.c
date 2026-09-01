@@ -113,8 +113,7 @@ static bool amr_format_parse(struct rtp_codec_format *f, const str *fmtp) {
 	// Per RFC 4867 section 8.1, missing fmtp parameters use defaults (bandwidth-efficient mode, no
 	// CRC, no robust-sorting, no interleaving). Parse whatever is present. Absent fields keep their
 	// defaults.
-	if (fmtp && fmtp->len)
-		codeclib_key_value_parse(fmtp, amr_parse_format_cb, f);
+	codeclib_key_value_parse(fmtp, amr_parse_format_cb, f);
 	return true;
 }
 static void amr_set_encdec_options(codec_options_t *opts, codec_def_t *def) {
