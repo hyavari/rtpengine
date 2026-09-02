@@ -644,8 +644,8 @@ void kernel_cleanup_pollers(void) {
 }
 
 
-__attribute__((nonnull(1, 2, 3)))
-static ssize_t kernel_sendmsg(socket_t *s, const endpoint_t *dst, struct uring_req_sendmsg *req)
+__attribute__((nonnull(1, 2)))
+static ssize_t kernel_sendmsg(socket_t *s, struct uring_req_sendmsg *req)
 {
 	size_t skblen = 0;
 	for (size_t i = 0; i < req->mh.msg_iovlen; i++)
@@ -719,7 +719,11 @@ static ssize_t kernel_sendmsg(socket_t *s, const endpoint_t *dst, struct uring_r
 	slot->steps[0].offset = fill;
 	slot->steps[0].length = skblen;
 
-	dst->address.family->endpoint2kernel(&metaslot->dst, dst);
+	// bit of a detour...
+	endpoint_t dst;
+	endpoint_parse_sockaddr_storage(&dst, &req->ss);
+
+	dst.address.family->endpoint2kernel(&metaslot->dst, &dst);
 	s->local.address.family->endpoint2kernel(&metaslot->src, &s->local);
 	metaslot->tos = s->tos;
 

@@ -707,7 +707,7 @@ int stun_binding_request(const endpoint_t *dst, uint32_t transaction[3], str *pw
 	fingerprint(&r->req.mh, &r->fp);
 
 	output_finish_src(&r->req.mh);
-	uring_methods.sendmsg(sock, dst, &r->req);
+	uring_sendmsg(sock, dst, &r->req);
 
 	return 0;
 }

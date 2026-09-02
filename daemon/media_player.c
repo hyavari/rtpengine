@@ -367,7 +367,7 @@ static bool __send_timer_send_1(struct rtp_header *rh, struct packet_stream *sin
 		.msg_iovlen = 1,
 	};
 	req->buf = bufferpool_ref(cp->s.s);
-	uring_methods.sendmsg(&sink_fd->socket, &sink->endpoint, &req->req);
+	uring_sendmsg(&sink_fd->socket, &sink->endpoint, &req->req);
 
 	if (sink->call->recording && (rtpe_config.rec_egress || rtpe_config.rec_both)) {
 		// fill in required members

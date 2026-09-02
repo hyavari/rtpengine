@@ -307,7 +307,7 @@ bool endpoint_parse_any(endpoint_t *, const char *); // address (ip) optional
 bool sockaddr_getaddrinfo_alt(sockaddr_t *a, sockaddr_t *a2, const char *s);
 bool endpoint_parse_any_getaddrinfo_alt(endpoint_t *d, endpoint_t *d2, const char *s); // address (ip or hostname) optional
 INLINE bool endpoint_parse_any_getaddrinfo(endpoint_t *d, const char *s);
-void endpoint_parse_sockaddr_storage(endpoint_t *, struct sockaddr_storage *);
+void endpoint_parse_sockaddr_storage(endpoint_t *, const struct sockaddr_storage *);
 void kernel2endpoint(endpoint_t *ep, const struct re_address *ra);
 
 unsigned int sockaddr_hash(const sockaddr_t *);

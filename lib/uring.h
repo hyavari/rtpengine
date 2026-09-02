@@ -20,8 +20,8 @@ struct uring_req_sendmsg {
 };
 
 struct uring_methods {
-	ssize_t (*sendmsg)(socket_t *, const endpoint_t *, struct uring_req_sendmsg *)
-		__attribute__((nonnull(1, 2, 3)));
+	ssize_t (*sendmsg)(socket_t *, struct uring_req_sendmsg *)
+		__attribute__((nonnull(1, 2)));
 
 	unsigned int (*thread_loop)(void);
 	void (*free)(struct uring_req *);
@@ -37,6 +37,21 @@ INLINE void uring_req_free(struct uring_req *r, int32_t res, uint32_t flags) {
 INLINE void uring_req_release(struct uring_req *r) {
 	r->handler(r, 0, 0);
 }
+
+__attribute__((nonnull(1, 2, 3)))
+INLINE void uring_sendmsg_prepare(socket_t *s, const endpoint_t *e, struct uring_req_sendmsg *r) {
+	s->family->endpoint2sockaddr(&r->ss, e);
+	r->mh.msg_name = &r->ss;
+	r->mh.msg_namelen = s->family->sockaddr_size;
+}
+
+__attribute__((nonnull(1, 2, 3)))
+INLINE ssize_t uring_sendmsg(socket_t *s, const endpoint_t *e, struct uring_req_sendmsg *r) {
+	uring_sendmsg_prepare(s, e, r);
+
+	return uring_methods.sendmsg(s, r);
+}
+
 
 #define uring_alloc_sendmsg(sv, fn) ({ \
 			__typeof__(sv) __ret = uring_methods.__alloc_req((sv), sizeof(*(sv))); \

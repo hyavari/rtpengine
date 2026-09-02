@@ -202,7 +202,7 @@ static bool __ip6_sockaddr2endpoint(endpoint_t *ep, const void *p) {
 	ep->port = ntohs(sin->sin6_port);
 	return true;
 }
-void endpoint_parse_sockaddr_storage(endpoint_t *ep, struct sockaddr_storage *sa) {
+void endpoint_parse_sockaddr_storage(endpoint_t *ep, const struct sockaddr_storage *sa) {
 	if (sa->ss_family == AF_INET)
 		__ip4_sockaddr2endpoint(ep, sa);
 	else if (sa->ss_family == AF_INET6)
