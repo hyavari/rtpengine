@@ -643,18 +643,13 @@ void kernel_cleanup_pollers(void) {
 	g_free(kernel_poller_threads);
 }
 
-void kernel_thread_init(void) {
-	if (!kernel_senders_num)
-		return;
-	uring_methods.sendmsg = kernel_sendmsg;
-}
 
-ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
-			struct sockaddr_storage *ss, struct uring_req *req)
+static ssize_t kernel_sendmsg(socket_t *s, const endpoint_t *dst,
+			struct sockaddr_storage *ss, struct uring_req_sendmsg *req)
 {
 	size_t skblen = 0;
-	for (size_t i = 0; i < msg->msg_iovlen; i++)
-		skblen += msg->msg_iov[i].iov_len;
+	for (size_t i = 0; i < req->mh.msg_iovlen; i++)
+		skblen += req->mh.msg_iov[i].iov_len;
 
 	unsigned int cur_idx = atomic_get_na(&kernel_sender_cur_idx);
 
@@ -671,7 +666,7 @@ ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
 		int buf_idx = atomic_get_na(pp->buf_idx);
 		if (buf_idx != 0 && buf_idx != 1) {
 			atomic_inc(&pp->errors);
-			req->handler(req, 0, 0);
+			uring_req_release(&req->req);
 			return -1;
 		}
 
@@ -705,7 +700,7 @@ ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
 		atomic_inc(&p->slots_full);
 		atomic_add_na(&shm->slots_filled, -1);
 		atomic_dec(&shm->writers);
-		req->handler(req, 0, 0);
+		uring_req_release(&req->req);
 		return -1;
 	}
 
@@ -717,7 +712,7 @@ ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
 		atomic_inc(&p->buf_full);
 		atomic_add_na(&shm->slots_filled, -1);
 		atomic_dec(&shm->writers);
-		req->handler(req, 0, 0);
+		uring_req_release(&req->req);
 		return -1;
 	}
 
@@ -729,9 +724,9 @@ ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
 	metaslot->tos = s->tos;
 
 	buf += fill;
-	for (size_t i = 0; i < msg->msg_iovlen; i++) {
-		memcpy(buf, msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len);
-		buf += msg->msg_iov[i].iov_len;
+	for (size_t i = 0; i < req->mh.msg_iovlen; i++) {
+		memcpy(buf, req->mh.msg_iov[i].iov_base, req->mh.msg_iov[i].iov_len);
+		buf += req->mh.msg_iov[i].iov_len;
 	}
 
 	int writers = atomic_dec(&shm->writers) - 1;
@@ -742,7 +737,15 @@ ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
 		assert(ret == sizeof(one));
 	}
 
-	req->handler(req, 0, 0);
+	uring_req_release(&req->req);
 
 	return skblen;
 }
+
+
+void kernel_thread_init(void) {
+	if (!kernel_senders_num)
+		return;
+	uring_methods.sendmsg = kernel_sendmsg;
+}
+

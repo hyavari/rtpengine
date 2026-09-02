@@ -664,9 +664,8 @@ ignore:
 }
 
 struct async_stun_req {
-	struct uring_req req; // must be first
+	struct uring_req_sendmsg req; // must be first
 	struct header hdr;
-	struct msghdr mh;
 	struct iovec iov[10]; /* hdr, username x2, ice_controlled/ing, priority, uc, fp, mi, sw x2 */
 	char username_buf[256];
 	struct generic un_attr;
@@ -684,32 +683,32 @@ int stun_binding_request(const endpoint_t *dst, uint32_t transaction[3], str *pw
 		socket_t *sock, int to_use)
 {
 	struct async_stun_req r_s;
-	struct async_stun_req *r = uring_alloc(&r_s, uring_req_free);
+	struct async_stun_req *r = uring_alloc_sendmsg(&r_s, uring_req_free);
 	int i;
 
-	output_init(&r->mh, r->iov, &r->hdr, STUN_BINDING_REQUEST, transaction);
-	software(&r->mh, &r->sw);
+	output_init(&r->req.mh, r->iov, &r->hdr, STUN_BINDING_REQUEST, transaction);
+	software(&r->req.mh, &r->sw);
 
 	i = snprintf(r->username_buf, sizeof(r->username_buf), STR_FORMAT":"STR_FORMAT,
 			STR_FMT(&ufrags[0]), STR_FMT(&ufrags[1]));
 	if (i <= 0 || i >= sizeof(r->username_buf))
 		return -1;
-	output_add_data_wr(&r->mh, &r->un_attr, STUN_USERNAME, r->username_buf, i);
+	output_add_data_wr(&r->req.mh, &r->un_attr, STUN_USERNAME, r->username_buf, i);
 
 	r->cc.tiebreaker = htobe64(tiebreaker);
-	output_add(&r->mh, &r->cc, controlling ? STUN_ICE_CONTROLLING : STUN_ICE_CONTROLLED);
+	output_add(&r->req.mh, &r->cc, controlling ? STUN_ICE_CONTROLLING : STUN_ICE_CONTROLLED);
 
 	r->prio.priority = htonl(priority);
-	output_add(&r->mh, &r->prio, STUN_PRIORITY);
+	output_add(&r->req.mh, &r->prio, STUN_PRIORITY);
 
 	if (to_use)
-		output_add(&r->mh, &r->uc, STUN_USE_CANDIDATE);
+		output_add(&r->req.mh, &r->uc, STUN_USE_CANDIDATE);
 
-	integrity(&r->mh, &r->mi, pwd);
-	fingerprint(&r->mh, &r->fp);
+	integrity(&r->req.mh, &r->mi, pwd);
+	fingerprint(&r->req.mh, &r->fp);
 
-	output_finish_src(&r->mh);
-	uring_methods.sendmsg(sock, &r->mh, dst, &r->sin, &r->req);
+	output_finish_src(&r->req.mh);
+	uring_methods.sendmsg(sock, dst, &r->sin, &r->req);
 
 	return 0;
 }

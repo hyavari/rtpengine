@@ -45,11 +45,11 @@ struct poller_req {
 	};
 };
 
-static ssize_t __socket_sendmsg(socket_t *s, struct msghdr *m, const endpoint_t *e,
-		struct sockaddr_storage *ss, struct uring_req *r)
+static ssize_t __socket_sendmsg(socket_t *s, const endpoint_t *e,
+		struct sockaddr_storage *ss, struct uring_req_sendmsg *r)
 {
-	ssize_t ret = socket_sendmsg(s, m, e);
-	r->handler(r, 0, 0);
+	ssize_t ret = socket_sendmsg(s, &r->mh, e);
+	uring_req_release(&r->req);
 	return ret;
 }
 static unsigned int __dummy_thread_loop(void) {
@@ -89,16 +89,16 @@ struct uring_buffer_req {
 static __thread struct io_uring rtpe_uring;
 
 
-static ssize_t __uring_sendmsg(socket_t *s, struct msghdr *m, const endpoint_t *e,
-		struct sockaddr_storage *ss, struct uring_req *r)
+static ssize_t __uring_sendmsg(socket_t *s, const endpoint_t *e,
+		struct sockaddr_storage *ss, struct uring_req_sendmsg *r)
 {
 	struct io_uring_sqe *sqe = io_uring_get_sqe(&rtpe_uring);
 	assert(sqe != NULL);
 	s->family->endpoint2sockaddr(ss, e);
-	m->msg_name = ss;
-	m->msg_namelen = s->family->sockaddr_size;
+	r->mh.msg_name = ss;
+	r->mh.msg_namelen = s->family->sockaddr_size;
 	io_uring_sqe_set_data(sqe, r);
-	io_uring_prep_sendmsg(sqe, s->fd, m, 0);
+	io_uring_prep_sendmsg(sqe, s->fd, &r->mh, 0);
 
 	return 0;
 }

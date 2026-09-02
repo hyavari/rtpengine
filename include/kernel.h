@@ -88,7 +88,5 @@ void kernel_poller_loop(void *);
 void kernel_cleanup_pollers(void);
 
 void kernel_thread_init(void);
-ssize_t kernel_sendmsg(socket_t *s, struct msghdr *msg, const endpoint_t *dst,
-			struct sockaddr_storage *src, struct uring_req *req);
 
 #endif

@@ -322,9 +322,8 @@ static void send_timer_rtcp(struct send_timer *st, struct ssrc_entry_call *ssrc_
 }
 
 struct async_send_req {
-	struct uring_req req; // must be first
+	struct uring_req_sendmsg req; // must be first
 	struct iovec iov;
-	struct msghdr msg;
 	struct sockaddr_storage sin;
 	void *buf;
 };
@@ -359,17 +358,17 @@ static bool __send_timer_send_1(struct rtp_header *rh, struct packet_stream *sin
 				FMT_M(endpoint_print_buf(&sink->endpoint)));
 
 	struct async_send_req req_s;
-	struct async_send_req *req = uring_alloc(&req_s, async_send_req_free);
+	struct async_send_req *req = uring_alloc_sendmsg(&req_s, async_send_req_free);
 	req->iov = (__typeof(req->iov)) {
 		.iov_base = cp->s.s,
 		.iov_len = cp->s.len,
 	};
-	req->msg = (__typeof(req->msg)) {
+	req->req.mh = (__typeof(req->req.mh)) {
 		.msg_iov = &req->iov,
 		.msg_iovlen = 1,
 	};
 	req->buf = bufferpool_ref(cp->s.s);
-	uring_methods.sendmsg(&sink_fd->socket, &req->msg, &sink->endpoint, &req->sin, &req->req);
+	uring_methods.sendmsg(&sink_fd->socket, &sink->endpoint, &req->sin, &req->req);
 
 	if (sink->call->recording && (rtpe_config.rec_egress || rtpe_config.rec_both)) {
 		// fill in required members

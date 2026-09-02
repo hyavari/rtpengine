@@ -13,9 +13,14 @@ struct uring_req {
 	uring_req_handler_fn *handler;
 };
 
+struct uring_req_sendmsg {
+	struct uring_req req;
+	struct msghdr mh;
+};
+
 struct uring_methods {
-	ssize_t (*sendmsg)(socket_t *, struct msghdr *, const endpoint_t *,
-			struct sockaddr_storage *, struct uring_req *);
+	ssize_t (*sendmsg)(socket_t *, const endpoint_t *,
+			struct sockaddr_storage *, struct uring_req_sendmsg *);
 	unsigned int (*thread_loop)(void);
 	void (*free)(struct uring_req *);
 	void *(*__alloc_req)(void *, size_t);
@@ -27,10 +32,14 @@ INLINE void uring_req_free(struct uring_req *r, int32_t res, uint32_t flags) {
 	uring_methods.free(r);
 }
 
-#define uring_alloc(sv, fn) ({ \
+INLINE void uring_req_release(struct uring_req *r) {
+	r->handler(r, 0, 0);
+}
+
+#define uring_alloc_sendmsg(sv, fn) ({ \
 			__typeof__(sv) __ret = uring_methods.__alloc_req((sv), sizeof(*(sv))); \
 			memset(sv, 0, sizeof(*(sv))); \
-			__ret->req.handler = (fn); \
+			__ret->req.req.handler = (fn); \
 			__ret; \
 		})
 
