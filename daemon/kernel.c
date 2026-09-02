@@ -644,8 +644,8 @@ void kernel_cleanup_pollers(void) {
 }
 
 
-static ssize_t kernel_sendmsg(socket_t *s, const endpoint_t *dst,
-			struct sockaddr_storage *ss, struct uring_req_sendmsg *req)
+__attribute__((nonnull(1, 2, 3)))
+static ssize_t kernel_sendmsg(socket_t *s, const endpoint_t *dst, struct uring_req_sendmsg *req)
 {
 	size_t skblen = 0;
 	for (size_t i = 0; i < req->mh.msg_iovlen; i++)

@@ -675,7 +675,6 @@ struct async_stun_req {
 	struct fingerprint fp;
 	struct msg_integrity mi;
 	struct software sw;
-	struct sockaddr_storage sin;
 };
 
 int stun_binding_request(const endpoint_t *dst, uint32_t transaction[3], str *pwd,
@@ -708,7 +707,7 @@ int stun_binding_request(const endpoint_t *dst, uint32_t transaction[3], str *pw
 	fingerprint(&r->req.mh, &r->fp);
 
 	output_finish_src(&r->req.mh);
-	uring_methods.sendmsg(sock, dst, &r->sin, &r->req);
+	uring_methods.sendmsg(sock, dst, &r->req);
 
 	return 0;
 }

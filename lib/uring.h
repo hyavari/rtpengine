@@ -16,11 +16,13 @@ struct uring_req {
 struct uring_req_sendmsg {
 	struct uring_req req;
 	struct msghdr mh;
+	struct sockaddr_storage ss; // destination address
 };
 
 struct uring_methods {
-	ssize_t (*sendmsg)(socket_t *, const endpoint_t *,
-			struct sockaddr_storage *, struct uring_req_sendmsg *);
+	ssize_t (*sendmsg)(socket_t *, const endpoint_t *, struct uring_req_sendmsg *)
+		__attribute__((nonnull(1, 2, 3)));
+
 	unsigned int (*thread_loop)(void);
 	void (*free)(struct uring_req *);
 	void *(*__alloc_req)(void *, size_t);

@@ -183,6 +183,9 @@ INLINE bool is_addr_unspecified(const sockaddr_t *a) {
 INLINE bool socket_listen(socket_t *s, int backlog) {
 	return listen(s->fd, backlog) == 0;
 }
+INLINE ssize_t socket_sendmsg_direct(socket_t *s, struct msghdr *mh) {
+	return sendmsg(s->fd, mh, 0);
+}
 
 #define socket_recvfrom_to(s,a...) (s)->family->recvfrom_to((s), a)
 #define socket_pktinfo(s) (s)->family->pktinfo((s))
