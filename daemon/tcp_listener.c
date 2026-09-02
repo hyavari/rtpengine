@@ -39,7 +39,7 @@ static void tcp_listener_incoming(int fd, void *p) {
 	listener = cb->ul;
 
 	for (;;) {
-		ret = listener->family->accept(listener, &newsock);
+		ret = socket_accept(listener, &newsock);
 		if (!ret) {
 			if (errno == EINTR)
 				continue;
@@ -79,7 +79,7 @@ static int tcp_listener_init(socket_t *sock, const endpoint_t *ep,
 
 	if (!open_socket(sock, SOCK_STREAM, ep->port, &ep->address))
 		goto fail;
-	if (!sock->family->listen(sock, 5))
+	if (!socket_listen(sock, 5))
 		goto fail;
 
 	ZERO(i);

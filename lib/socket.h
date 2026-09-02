@@ -69,21 +69,10 @@ struct socket_family {
 	bool				(*sockaddr2endpoint)(endpoint_t *, const void *);
 	bool				(*endpoint2sockaddr)(void *, const endpoint_t *);
 	bool				(*addrport2sockaddr)(void *, const sockaddr_t *, unsigned int);
-	bool				(*bind)(socket_t *, unsigned int, const sockaddr_t *);
-	bool				(*connect)(socket_t *, const endpoint_t *);
-	bool				(*listen)(socket_t *, int);
-	bool				(*accept)(socket_t *, socket_t *);
-	bool				(*getsockname)(socket_t *);
-	bool				(*timestamping)(socket_t *);
 	bool				(*pktinfo)(socket_t *);
-	ssize_t				(*recvfrom)(socket_t *, void *, size_t, endpoint_t *);
-	ssize_t				(*recvfrom_ts)(socket_t *, void *, size_t, endpoint_t *, int64_t *);
 	ssize_t				(*recvfrom_to)(socket_t *, void *, size_t, endpoint_t *, sockaddr_t *);
-	ssize_t				(*sendmsg)(socket_t *, struct msghdr *, const endpoint_t *);
-	ssize_t				(*sendto)(socket_t *, const void *, size_t, const endpoint_t *);
 	bool				(*tos)(socket_t *, unsigned int);
 	void				(*pmtu_disc)(socket_t *, int);
-	int				(*error)(socket_t *);
 	void				(*endpoint2kernel)(struct re_address *, const endpoint_t *);
 	void				(*kernel2endpoint)(endpoint_t *, const struct re_address *);
 	unsigned int			(*packet_header)(unsigned char *, const endpoint_t *, const endpoint_t *,
@@ -110,10 +99,19 @@ struct socket {
 };
 
 
-
-
 extern socktype_t *socktype_udp;
 
+
+bool socket_bind(socket_t *s, unsigned int, const sockaddr_t *);
+bool socket_connect(socket_t *s, const endpoint_t *);
+bool socket_accept(socket_t *s, socket_t *new_sock);
+bool socket_getsockname(socket_t *s);
+bool socket_timestamping(socket_t *s);
+ssize_t socket_recvfrom(socket_t *s, void *buf, size_t len, endpoint_t *ep);
+ssize_t socket_recvfrom_ts(socket_t *s, void *buf, size_t len, endpoint_t *ep, int64_t *);
+ssize_t socket_sendmsg(socket_t *s, struct msghdr *mh, const endpoint_t *ep);
+ssize_t socket_sendto(socket_t *s, const void *buf, size_t len, const endpoint_t *ep);
+int socket_error(socket_t *s);
 
 
 #include "auxlib.h"
@@ -182,15 +180,13 @@ INLINE bool is_addr_unspecified(const sockaddr_t *a) {
 		return true;
 	return !a->family->is_specified(a);
 }
-#define socket_recvfrom(s,a...) (s)->family->recvfrom((s), a)
-#define socket_recvfrom_ts(s,a...) (s)->family->recvfrom_ts((s), a)
+INLINE bool socket_listen(socket_t *s, int backlog) {
+	return listen(s->fd, backlog) == 0;
+}
+
 #define socket_recvfrom_to(s,a...) (s)->family->recvfrom_to((s), a)
-#define socket_sendmsg(s,a...) (s)->family->sendmsg((s), a)
-#define socket_sendto(s,a...) (s)->family->sendto((s), a)
-#define socket_error(s) (s)->family->error((s))
-#define socket_timestamping(s) (s)->family->timestamping((s))
 #define socket_pktinfo(s) (s)->family->pktinfo((s))
-#define socket_getsockname(s) (s)->family->getsockname((s))
+
 INLINE ssize_t socket_sendiov(socket_t *s, const struct iovec *v, unsigned int len, const endpoint_t *dst,
 		const sockaddr_t *src)
 {

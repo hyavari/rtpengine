@@ -322,6 +322,7 @@ test-mix-buffer:	test-mix-buffer.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/poller.o \
 	../lib/resample.o \
+	../lib/socket.o \
 	../lib/uring.o \
 	log.o
 
@@ -536,6 +537,7 @@ test-payload-tracker: test-payload-tracker.o \
 	../lib/mvr2s_x64_avx512.o \
 	../lib/poller.o \
 	../lib/resample.o \
+	../lib/socket.o \
 	../lib/uring.o \
 	log.o
 
