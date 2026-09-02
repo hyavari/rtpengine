@@ -367,7 +367,25 @@ static bool __send_timer_send_1(struct rtp_header *rh, struct packet_stream *sin
 		.msg_iovlen = 1,
 	};
 	req->buf = bufferpool_ref(cp->s.s);
-	uring_sendmsg(&sink_fd->socket, &sink->endpoint, &req->req);
+
+	if (rtpe_poller_isblocked(sink_fd->poller, GINT_TO_POINTER(sink_fd->socket.fd))) {
+		uring_sendmsg_prepare(&sink_fd->socket, &sink->endpoint, &req->req);
+		t_queue_push_tail(&sink_fd->send_q, uring_dup_sendmsg(req));
+	}
+	else {
+		ssize_t ret = uring_sendmsg_fail(&sink_fd->socket, &sink->endpoint, &req->req);
+		if (ret < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				rtpe_poller_blocked(sink_fd->poller, GINT_TO_POINTER(sink_fd->socket.fd));
+				t_queue_push_tail(&sink_fd->send_q, uring_dup_sendmsg(req));
+			}
+			else {
+				ilog(LOG_WARN | LOG_FLAG_LIMIT, "Error returned from OS while sending media packet: %s",
+						strerror(errno));
+				async_send_req_free(&req->req.req, 0, 0);
+			}
+		}
+	}
 
 	if (sink->call->recording && (rtpe_config.rec_egress || rtpe_config.rec_both)) {
 		// fill in required members

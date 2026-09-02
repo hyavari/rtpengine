@@ -4023,8 +4023,14 @@ void stream_fd_kernel_input(stream_fd *sfd, char *buf, size_t len,
 }
 
 
+static void send_q_free_entry(struct uring_req_sendmsg *req) {
+	uring_req_release(&req->req);
+	uring_methods.dup_free(&req->req);
+}
+
 
 static void stream_fd_free(stream_fd *f) {
+	t_queue_clear_full(&f->send_q, send_q_free_entry);
 	release_port(&f->spl);
 	crypto_cleanup(&f->crypto);
 	dtls_connection_cleanup(&f->dtls);
@@ -4034,6 +4040,48 @@ static void stream_fd_free(stream_fd *f) {
 
 	bufferpool_unref(f);
 }
+
+
+static void stream_fd_writeable(int fd, void *p) {
+	stream_fd *sfd = p;
+	call_t *ca = sfd->call;
+	if (!ca)
+		return;
+
+	rwlock_lock_r(&ca->master_lock);
+
+	__auto_type ps = sfd->stream;
+
+	if (sfd->socket.fd != fd || !ps) {
+		rwlock_unlock_r(&ca->master_lock);
+		return;
+	}
+
+	log_info_stream_fd(sfd);
+
+	LOCK(&ps->lock);
+
+	while (sfd->send_q.length) {
+		__auto_type req = t_queue_pop_head(&sfd->send_q);
+		ssize_t ret = uring_methods.sendmsg(&sfd->socket, req);
+		if (ret < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				rtpe_poller_blocked(sfd->poller, GINT_TO_POINTER(sfd->socket.fd));
+				t_queue_push_head(&sfd->send_q, req);
+				break;
+			}
+			else {
+				ilog(LOG_WARN | LOG_FLAG_LIMIT, "Error returned from OS while sending media packet: %s",
+						strerror(errno));
+				send_q_free_entry(req);
+			}
+		}
+	}
+
+	rwlock_unlock_r(&ca->master_lock);
+	log_info_pop();
+}
+
 
 stream_fd *stream_fd_new(struct socket_port_link *spl, call_t *call, struct local_intf *lif) {
 	stream_fd *sfd;
@@ -4053,6 +4101,7 @@ stream_fd *stream_fd_new(struct socket_port_link *spl, call_t *call, struct loca
 	pi.fd = sfd->socket.fd;
 	pi.obj = &sfd->obj;
 	pi.readable = stream_fd_readable;
+	pi.writeable = stream_fd_writeable;
 	pi.recv = stream_fd_recv;
 	pi.closed = stream_fd_closed;
 

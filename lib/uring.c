@@ -49,24 +49,43 @@ __attribute__((nonnull(1, 2)))
 static ssize_t __socket_sendmsg(socket_t *s, struct uring_req_sendmsg *r)
 {
 	ssize_t ret = socket_sendmsg_direct(s, &r->mh);
-	uring_req_release(&r->req);
+	if (ret >= 0)
+		uring_req_release(&r->req);
 	return ret;
 }
 static unsigned int __dummy_thread_loop(void) {
 	return 0;
 }
-static void *__dummy_alloc(void *stack_storage, size_t len) {
+static void *__stack_alloc(void *stack_storage, size_t len) {
 	return stack_storage;
 }
 static void __dummy_free(struct uring_req *dummy) {
+}
+static void __heap_free(struct uring_req *r) {
+	g_free(r);
+}
+
+static struct uring_req_sendmsg * __stack_dup(struct uring_req_sendmsg *req, size_t size) {
+	struct uring_req_sendmsg *ret = g_malloc(size);
+	memcpy(ret, req, size);
+
+	// adjust contained pointers
+	ret->mh.msg_iov = ret->iov;
+	ret->mh.msg_name = &ret->ss;
+
+	return ret;
 }
 
 
 __thread struct uring_methods uring_methods = {
 	.sendmsg = __socket_sendmsg,
 	.thread_loop = __dummy_thread_loop,
+
 	.free = __dummy_free,
-	.__alloc_req = __dummy_alloc,
+	.__alloc_req = __stack_alloc,
+
+	.__alloc_dup = __stack_dup,
+	.dup_free = __heap_free,
 };
 
 
@@ -119,9 +138,8 @@ static unsigned int __uring_thread_loop(void) {
 static void *__uring_alloc(void *dummy, size_t len) {
 	return g_malloc(len);
 }
-
-static void __uring_free(struct uring_req *r) {
-	g_free(r);
+static struct uring_req_sendmsg * __dummy_dup(struct uring_req_sendmsg *req, size_t size) {
+	return req;
 }
 
 void uring_thread_init(void) {
@@ -137,7 +155,9 @@ void uring_thread_init(void) {
 		.sendmsg = __uring_sendmsg,
 		.thread_loop = __uring_thread_loop,
 		.__alloc_req = __uring_alloc,
-		.free = __uring_free,
+		.free = __heap_free,
+		.__alloc_dup = __dummy_dup,
+		.dup_free = __dummy_free,
 	};
 }
 

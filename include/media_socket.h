@@ -13,6 +13,7 @@
 #include "socket.h"
 #include "containers.h"
 #include "codec.h"
+#include "uring.h"
 
 #include "nft_rtpengine.h"
 #include "common_stats.h"
@@ -244,6 +245,7 @@ struct stream_fd {
 	int				error_strikes;
 	int				active_read_events;
 	struct poller			*poller;
+	sendmsg_q			send_q;
 
 	unsigned int			users;
 
