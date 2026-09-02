@@ -322,7 +322,7 @@ static void send_timer_rtcp(struct send_timer *st, struct ssrc_entry_call *ssrc_
 }
 
 struct async_send_req {
-	struct uring_req_sendmsg req; // must be first
+	struct uring_req_sendmsg req; // must be first, followed by iov
 	struct iovec iov;
 	void *buf;
 };

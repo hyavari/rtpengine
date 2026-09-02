@@ -17,6 +17,7 @@ struct uring_req_sendmsg {
 	struct uring_req req;
 	struct msghdr mh;
 	struct sockaddr_storage ss; // destination address
+	struct iovec iov[0]; // provided by outer container
 };
 
 struct uring_methods {

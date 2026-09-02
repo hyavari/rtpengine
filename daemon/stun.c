@@ -664,9 +664,9 @@ ignore:
 }
 
 struct async_stun_req {
-	struct uring_req_sendmsg req; // must be first
-	struct header hdr;
+	struct uring_req_sendmsg req; // must be first, followed by iov
 	struct iovec iov[10]; /* hdr, username x2, ice_controlled/ing, priority, uc, fp, mi, sw x2 */
+	struct header hdr;
 	char username_buf[256];
 	struct generic un_attr;
 	struct controlled_ing cc;
