@@ -785,9 +785,9 @@ static bool __make_transcoder_full(struct codec_handler *handler, rtp_payload_ty
 		int cn_payload_type, int (*packet_decoded)(decoder_t *, AVFrame *, void *, void *),
 		struct ssrc_entry *(*ssrc_handler_new_func)(void *p))
 {
-	if (!codec_def_supported(handler->source_pt.codec_def))
+	if (!codec_supported(&handler->source_pt))
 		return false;
-	if (!codec_def_supported(dest->codec_def))
+	if (!codec_supported(dest))
 		return false;
 
 	// don't reset handler if it already matches what we want
@@ -1024,7 +1024,7 @@ void check_codec_list(supp_ht *supplemental_sinks, rtp_payload_type **pref_dest_
 	for (__auto_type l = sink->codecs.codec_prefs.head; l; l = l->next) {
 		rtp_payload_type *pt = l->data;
 		ensure_codec_def(pt, sink);
-		if (!codec_def_supported(pt->codec_def)) // not supported, next
+		if (!codec_supported(pt)) // not supported, next
 			continue;
 
 		// fix up ptime
@@ -1261,7 +1261,7 @@ static void __check_t38_gateway(struct call_media *pcm_media, struct call_media 
 	for (__auto_type l = pcm_media->codecs.codec_prefs.head; l; l = l->next) {
 		rtp_payload_type *pt = l->data;
 		struct codec_handler *handler = __get_pt_handler(pcm_media, pt, t38_media);
-		if (!codec_def_supported(pt->codec_def)) {
+		if (!codec_supported(pt)) {
 			// should not happen
 			ilogs(codec, LOG_WARN, "Unsupported codec " STR_FORMAT "/" STR_FORMAT
 				" for T.38 transcoding",
@@ -1569,7 +1569,7 @@ void __codec_handlers_update(struct call_media *source, struct call_media *sink,
 		struct codec_handler *handler = __get_pt_handler(source, pt, sink);
 
 		// check our own support for this codec
-		if (!codec_def_supported(pt->codec_def)) {
+		if (!codec_supported(pt)) {
 			// not supported
 			ilogs(codec, LOG_DEBUG, "No codec support for " STR_FORMAT "/" STR_FORMAT,
 					STR_FMT(&pt->encoding_with_params),
@@ -1973,7 +1973,7 @@ bool codec_handler_transform(struct call_media *receiver, ng_codecs_q *q) {
 
 		if (!rtp_payload_type_eq_nf(input, output)) {
 #ifdef WITH_TRANSCODING
-			if (!codec_def_supported(input->codec_def) || !codec_def_supported(output->codec_def))
+			if (!codec_supported(input) || !codec_supported(output))
 				return false;
 			codec_store_add_raw(&receiver->codecs, rtp_payload_type_dup(input));
 			__make_transcoder(handler, output, NULL, -1, false, -1);
@@ -4429,7 +4429,7 @@ static bool __ssrc_handler_decode_common(struct codec_ssrc_handler *ch, struct c
 static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 	struct codec_handler *h = p;
 
-	if (!codec_def_supported(h->source_pt.codec_def) || !codec_def_supported(h->dest_pt.codec_def))
+	if (!codec_supported(&h->source_pt) || !codec_supported(&h->dest_pt))
 		return NULL;
 
 	ilogs(codec, LOG_DEBUG, "Creating SSRC transcoder from %s/%u/%i to "
@@ -6103,7 +6103,7 @@ int codec_store_accept_one(struct codec_store *cs, const str_q *accept, bool acc
 			rtp_payload_type *pt = l->data;
 			if (!accept_any) {
 				ensure_codec_def(pt, cs->media);
-				if (!codec_def_supported(pt->codec_def))
+				if (!codec_supported(pt))
 					continue;
 			}
 			accept_pt = pt;
@@ -6127,7 +6127,7 @@ int codec_store_accept_one(struct codec_store *cs, const str_q *accept, bool acc
 		}
 		ensure_codec_def(pt, cs->media);
 		if (accept_all) {
-			if (codec_def_supported(pt->codec_def)
+			if (codec_supported(pt)
 					|| (pt->codec_def && pt->codec_def->supplemental))
 			{
 				link = link->next;
@@ -6453,7 +6453,7 @@ void codec_store_synthesise_basic(struct codec_store *dst, const char *reason) {
 		// we already have a list of codecs - make sure they're all supported by us
 		for (__auto_type l = dst->codec_prefs.head; l;) {
 			rtp_payload_type *pt = l->data;
-			if (codec_def_supported(pt->codec_def)) {
+			if (codec_supported(pt)) {
 				l = l->next;
 				continue;
 			}

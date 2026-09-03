@@ -951,7 +951,7 @@ static rtp_payload_type *media_player_get_dst_pt(struct media_player *mp) {
 	for (__auto_type l = mp->media->codecs.codec_prefs.head; l; l = l->next) {
 		dst_pt = l->data;
 		ensure_codec_def(dst_pt, mp->media);
-		if (codec_def_supported(dst_pt->codec_def) && !dst_pt->codec_def->supplemental)
+		if (codec_supported(dst_pt) && !dst_pt->codec_def->supplemental)
 			goto found;
 		dst_pt = NULL;
 	}

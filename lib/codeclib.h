@@ -571,10 +571,14 @@ INLINE int decoder_event(decoder_t *dec, enum codec_event event, void *ptr) {
 		return 0;
 	return dec->event_func(event, ptr, dec->event_data);
 }
-INLINE bool codec_def_supported(codec_def_t *def) {
-	if (!def)
+INLINE bool codec_supported(const struct rtp_payload_type *pt) {
+	if (!pt)
 		return false;
-	return def->support_encoding && def->support_decoding;
+	if (!pt->codec_def)
+		return false;
+	if (!pt->codec_def->support_encoding || !pt->codec_def->support_decoding)
+		return false;
+	return true;
 }
 
 
@@ -607,7 +611,7 @@ INLINE codec_def_t *codec_find(const str *name, enum media_type type) {
 INLINE void packet_sequencer_destroy(packet_sequencer_t *p) {
 	return;
 }
-INLINE bool codec_def_supported(codec_def_t *def) {
+INLINE bool codec_supported(const struct rtp_payload_type *pt) {
 	return false;
 }
 
