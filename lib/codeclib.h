@@ -114,6 +114,7 @@ typedef void select_decoder_format_f(decoder_t *, const struct rtp_codec_format 
 
 typedef bool format_parse_f(struct rtp_codec_format *, const str *fmtp);
 typedef void format_answer_f(struct rtp_payload_type *, const struct rtp_payload_type *);
+typedef bool format_supported_f(const struct rtp_payload_type *);
 
 typedef const struct {
 	void (*init)(encoder_t *);
@@ -210,6 +211,7 @@ struct codec_def_s {
 	format_cmp_f *format_cmp;
 	format_print_f *format_print;
 	format_answer_f *format_answer;
+	format_supported_f *format_supported;
 	packetizer_t *packetizer;
 	select_encoder_format_f *select_encoder_format;
 	select_decoder_format_f *select_decoder_format;
@@ -578,6 +580,8 @@ INLINE bool codec_supported(const struct rtp_payload_type *pt) {
 		return false;
 	if (!pt->codec_def->support_encoding || !pt->codec_def->support_decoding)
 		return false;
+	if (pt->codec_def->format_supported)
+		return pt->codec_def->format_supported(pt);
 	return true;
 }
 
