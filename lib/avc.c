@@ -429,17 +429,34 @@ codec_def_t *codec_def_make_generic_av(enum AVCodecID id, enum media_type type) 
 			return NULL;
 
 		ret = g_new(__typeof(*ret), 1);
-		*ret = (__typeof(*ret)) {
-			.rtpname = "generic ffmpeg codec",
-			.rtpname_str = STR_CONST("generic ffmpeg codec"),
-			.avcodec_id = id,
-			.default_clockrate_fact = {1,1},
-			.media_type = MT_AUDIO,
-			.codec_type = &codec_type_avcodec,
-			.decoder = codec,
-			.support_decoding = 1,
-			.support_encoding = 1, // just pretend
-		};
+
+		if (type == MT_AUDIO) {
+			*ret = (__typeof(*ret)) {
+				.rtpname = "generic ffmpeg audio codec",
+				.rtpname_str = STR_CONST("generic ffmpeg audio codec"),
+				.avcodec_id = id,
+				.default_clockrate_fact = {1,1},
+				.media_type = type,
+				.codec_type = &codec_type_avcodec,
+				.decoder = codec,
+				.support_decoding = 1,
+				.support_encoding = 1, // just pretend
+			};
+		}
+		else {
+			// video
+			*ret = (__typeof(*ret)) {
+				.rtpname = "generic ffmpeg video codec",
+				.rtpname_str = STR_CONST("generic ffmpeg video codec"),
+				.avcodec_id = id,
+				.default_clockrate_fact = {1,1},
+				.media_type = type,
+				.codec_type = &codec_type_video_avcodec,
+				.decoder = codec,
+				.support_decoding = 1,
+				.support_encoding = 1, // just pretend
+			};
+		}
 
 		t_hash_table_insert(generic_ffmpeg_codecs, GINT_TO_POINTER(id), ret);
 

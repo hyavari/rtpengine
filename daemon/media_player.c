@@ -504,7 +504,8 @@ static void media_player_coder_add_packet(struct media_player_coder *c,
 {
 	// scale pts and duration according to sample rate
 
-	unsigned long long pts_scaled = c->pkt->pts * c->avstream->codecpar->sample_rate
+	int64_t srate = c->handler->source_pt.clock_rate;
+	int64_t pts_scaled = c->pkt->pts * srate
 		* c->avstream->time_base.num / c->avstream->time_base.den;
 
 	int64_t duration = c->pkt->duration;
@@ -520,7 +521,7 @@ static void media_player_coder_add_packet(struct media_player_coder *c,
 	int64_t us_dur = duration * 1000000LL * c->avstream->time_base.num
 		/ c->avstream->time_base.den;
 
-	ilog(LOG_DEBUG, "read media packet: pts %llu duration %" PRId64 " (scaled %llu/%" PRId64 ", %" PRId64 " us), "
+	ilog(LOG_DEBUG, "read media packet: pts %llu duration %" PRId64 " (scaled %" PRId64 "/%" PRId64 ", %" PRId64 " us), "
 			"sample rate %i, time_base %i/%i",
 			(unsigned long long) c->pkt->pts,
 			duration,
@@ -1057,13 +1058,17 @@ static int __ensure_codec_handler(struct media_player *mp, const rtp_payload_typ
 		return -1;
 	}
 
-	if (!GET_CHANNELS(mp->coder.avstream->codecpar) || !mp->coder.avstream->codecpar->sample_rate)
-		__probe_format(mp);
+	if (mp->media->type_id == MT_AUDIO) {
+		if (!GET_CHANNELS(mp->coder.avstream->codecpar) || !mp->coder.avstream->codecpar->sample_rate)
+			__probe_format(mp);
 
-	if (!GET_CHANNELS(mp->coder.avstream->codecpar) || !mp->coder.avstream->codecpar->sample_rate) {
-		ilog(LOG_ERR, "Unrecognised audio format, cannot do playback");
-		return -1;
+		if (!GET_CHANNELS(mp->coder.avstream->codecpar) || !mp->coder.avstream->codecpar->sample_rate) {
+			ilog(LOG_ERR, "Unrecognised media format, cannot do playback");
+			return -1;
+		}
+
 	}
+	// XXX verify video codec parameters?
 
 	src_pt.encoding = src_pt.codec_def->rtpname_str;
 	src_pt.channels = GET_CHANNELS(mp->coder.avstream->codecpar);
@@ -1277,6 +1282,8 @@ static bool media_player_play_start(struct media_player *mp, const rtp_payload_t
 		AVStream *st = mp->coder.fmtctx->streams[i];
 
 		if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO && mp->media->type_id == MT_AUDIO)
+			continue;
+		if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && mp->media->type_id == MT_VIDEO)
 			continue;
 
 		ilog(LOG_DEBUG, "Using stream #%u for " STR_FORMAT,
@@ -1732,6 +1739,7 @@ const char *call_check_moh(struct call_monologue *from_ml, struct call_monologue
 
 static void set_monologue_media(struct call_monologue *ml, bool allow_inactive) {
 	ml->audio = NULL;
+	ml->video = NULL;
 
 	for (unsigned int i = 0; i < ml->medias->len; i++) {
 		__auto_type m = ml->medias->pdata[i];
@@ -1744,8 +1752,11 @@ static void set_monologue_media(struct call_monologue *ml, bool allow_inactive) 
 		if (!ml->audio && m->type_id == MT_AUDIO)
 			if (allow_inactive || MEDIA_ISSET(m, SEND))
 				ml->audio = m;
+		if (!ml->video && m->type_id == MT_VIDEO)
+			if (allow_inactive || MEDIA_ISSET(m, SEND))
+				ml->video = m;
 
-		if (ml->audio)
+		if (ml->audio && ml->video)
 			return;
 	}
 }
@@ -1763,24 +1774,40 @@ const char *call_play_media_for_ml(struct call_monologue *ml, unsigned int mp_id
 	set_monologue_media(ml, opts->moh);
 
 	struct call_media *audio = ml->audio;
-	if (!audio)
+	struct call_media *video = ml->video;
+	if (!audio && !video)
 		return "No suitable output for media playback";
 
-	if (audio->players[mp_idx] && audio->players[mp_idx]->opts.moh) {
+	if (audio && audio->players[mp_idx] && audio->players[mp_idx]->opts.moh) {
 		ilog(LOG_DEBUG, "There is already ongoing media playback for MoH. Ignore new one.");
 		/* pretend that everything is good */
 		return NULL;
 	}
-	else {
+
+	bool ok = false;
+
+	if (audio) {
 		/* media_player_new() now knows that audio player is in use
 		* TODO: player options can have changed if already exists */
 		media_player_new(&audio->players[mp_idx], audio, NULL, opts);
+
+		if (!media_player_play(audio->players[mp_idx], opts))
+			audio->players[mp_idx]->opts.moh = 0;
+		else
+			ok = true;
 	}
 
-	if (!media_player_play(audio->players[mp_idx], opts)) {
-		audio->players[mp_idx]->opts.moh = 0;
-		return "Failed to start media playback";
+	if (video) {
+		media_player_new(&video->players[mp_idx], video, NULL, opts);
+
+		if (!media_player_play(video->players[mp_idx], opts))
+			video->players[mp_idx]->opts.moh = 0;
+		else
+			ok = true;
 	}
+
+	if (!ok)
+		return "Failed to start any media playback";
 
 	return NULL;
 #else
@@ -1811,7 +1838,8 @@ long long call_stop_media_for_ml(struct call_monologue *ml, unsigned int mp_idx)
 {
 #ifdef WITH_TRANSCODING
 	long long ret = call_stop_media(ml->audio, mp_idx);
-	return ret;
+	long long ret2 = call_stop_media(ml->video, mp_idx);
+	return ret ?: ret2;
 #else
 	return 0;
 #endif

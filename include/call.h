@@ -638,6 +638,7 @@ struct call_monologue {
 
 	// for media players
 	struct call_media	*audio;
+	struct call_media	*video;
 
 	sdp_origin		sdp_orig_in;	/* actual origin belonging to this monologue */
 	sdp_origin		sdp_orig_out;	/* previously used origin by other other side */
