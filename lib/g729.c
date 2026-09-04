@@ -216,7 +216,7 @@ static void bcg729_encoder_close(encoder_t *enc) {
 }
 
 static int packetizer_g729_fn(AVPacket *pkt, str *input_output, size_t num_bytes, encoder_t *enc,
-		int64_t *__restrict pts, int64_t *__restrict duration)
+		int64_t *__restrict pts, int64_t *__restrict duration, bool *mark)
 {
 	GString *buf = enc->sample_buffer;
 
@@ -225,7 +225,7 @@ static int packetizer_g729_fn(AVPacket *pkt, str *input_output, size_t num_bytes
 
 	// easiest case: we only want one frame. return what we got
 	if (want_frames == 1 && pkt)
-		return packetizer_passthrough.fn(pkt, input_output, num_bytes, enc, pts, duration);
+		return packetizer_passthrough.fn(pkt, input_output, num_bytes, enc, pts, duration, mark);
 
 	// any other case, we go through our buffer
 	str output = *input_output; // remaining output buffer

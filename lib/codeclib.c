@@ -847,7 +847,7 @@ static int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
 
 
 static int packetizer_passthrough_fn(AVPacket *pkt, str *output, size_t num_bytes, encoder_t *enc,
-		int64_t *__restrict pts, int64_t *__restrict duration)
+		int64_t *__restrict pts, int64_t *__restrict duration, bool *mark)
 {
 	if (!pkt)
 		return -1;
@@ -871,7 +871,7 @@ packetizer_t packetizer_passthrough = {
 // returns: -1 = not enough data, nothing returned; 0 = returned a packet;
 // 1 = returned a packet and there's more
 static int packetizer_samplestream_fn(AVPacket *pkt, str *input_output, size_t num_bytes,
-		encoder_t *enc, int64_t *__restrict pts, int64_t *__restrict duration)
+		encoder_t *enc, int64_t *__restrict pts, int64_t *__restrict duration, bool *mark)
 {
 	GString *buf = enc->sample_buffer;
 

@@ -527,7 +527,7 @@ static void amr_encoder_got_packet(encoder_t *enc) {
 	enc->avc.amr.pkt_seq++;
 }
 static int packetizer_amr_fn(AVPacket *pkt, str *output, size_t num_bytes, encoder_t *enc,
-		int64_t *__restrict pts, int64_t *__restrict duration)
+		int64_t *__restrict pts, int64_t *__restrict duration, bool *mark)
 {
 	assert(pkt->size >= 1);
 

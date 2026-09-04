@@ -232,7 +232,7 @@ struct codec_ssrc_handler {
 
 	uint64_t skip_pts;
 
-	bool rtp_mark:1;
+	bool rtp_mark;
 };
 struct transcode_packet {
 	seq_packet_t p; // must be first
@@ -4596,7 +4596,7 @@ void packet_encoded_packetize(AVPacket *pkt, struct codec_ssrc_handler *ch, stru
 			ilogs(transcoding, LOG_DEBUG, "Adding %i bytes to packetizer", in_pkt->size);
 		int64_t pts, duration;
 		int ret = pktzer->fn(in_pkt, &inout, ch->bytes_per_packet, pkt_f_data, &pts,
-				&duration);
+				&duration, &ch->rtp_mark);
 
 		if (G_UNLIKELY(ret == -1 || pts == AV_NOPTS_VALUE)) {
 			// nothing

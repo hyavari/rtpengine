@@ -107,7 +107,7 @@ typedef struct dtx_method_s dtx_method_t;
 typedef struct codec_cc_s codec_cc_t;
 
 typedef int packetizer_f(AVPacket *, str *, size_t, encoder_t *,
-		int64_t *__restrict pts, int64_t *__restrict dur);
+		int64_t *__restrict pts, int64_t *__restrict dur, bool *mark);
 typedef void format_init_f(struct rtp_payload_type *);
 typedef bool set_enc_options_f(encoder_t *, const str *);
 typedef void set_dec_options_f(decoder_t *, const str *);
