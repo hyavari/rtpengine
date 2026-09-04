@@ -2593,7 +2593,7 @@ void redis_encode_codec_store(const ng_parser_t *parser, parser_arg list,
 		const struct codec_store *store)
 {
 	char tmp[1024];
-	for (__auto_type l = store->codec_prefs.head; l; l = l->next) {
+	for (auto_iter(l, store->codec_prefs.head); l; l = l->next) {
 		rtp_payload_type *pt = l->data;
 		size_t len = rtpe_snprintf(tmp, sizeof(tmp), "%u/" STR_FORMAT "/%u/" STR_FORMAT
 				"/%i/%i/" STR_FORMAT "/" STR_FORMAT,
@@ -2631,7 +2631,7 @@ int redis_encode_sdes_params(const ng_parser_t *parser, parser_arg inner, const 
 	char keybuf[32];
 	const char *key = k;
 
-	for (__auto_type l = q->head; l; l = l->next) {
+	for (auto_iter(l, q->head); l; l = l->next) {
 		struct crypto_params_sdes *cps = l->data;
 		struct crypto_params *p = &cps->params;
 
