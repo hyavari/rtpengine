@@ -263,7 +263,9 @@ void config_load_ext(int *argc, char ***argv, GOptionEntry *app_entries, const c
 		{ "io-uring",		0,0,	G_OPTION_ARG_NONE,	&rtpe_common_config_ptr->io_uring,	"Use io_uring",				NULL },
 		{ "io-uring-buffers",	0,0,	G_OPTION_ARG_INT,	&rtpe_common_config_ptr->io_uring_buffers,"Number of io_uring entries per thread","INT" },
 #endif
+#ifdef WITH_TRANSCODING
 		{ "evs-lib-path",	0,0,	G_OPTION_ARG_FILENAME,	&rtpe_common_config_ptr->evs_lib_path,	"Location of .so for 3GPP EVS codec",	"FILE"		},
+		{ "video-packet-size",	0,0,	G_OPTION_ARG_INT,	&rtpe_common_config_ptr->video_pkt_size,"Target maximum size of video RTP packets","INT"	},
 #ifdef HAVE_CODEC_CHAIN
 		{ "codec-chain-lib-path",0,0,	G_OPTION_ARG_FILENAME,	&rtpe_common_config_ptr->codec_chain_lib_path,"Location of libcodec-chain.so",	"FILE"		},
 		{ "codec-chain-runners",0,0,	G_OPTION_ARG_INT,	&rtpe_common_config_ptr->codec_chain_runners,"Number of chain runners per codec","INT"		},
@@ -273,6 +275,7 @@ void config_load_ext(int *argc, char ***argv, GOptionEntry *app_entries, const c
 		{ "codec-chain-interval",0,0,	G_OPTION_ARG_INT,	&rtpe_common_config_ptr->codec_chain_interval,"Microseconds between runs",	"INT"	},
 		{ "codec-chain-opus-application",0,0,G_OPTION_ARG_STRING,&opus_application,			"Opus application",			"default|VoIP|audio|low-delay"	},
 		{ "codec-chain-opus-complexity",0,0,G_OPTION_ARG_INT,	&rtpe_common_config_ptr->codec_chain_opus_complexity,"Opus encoding complexity (0..10)","INT"	},
+#endif
 #endif
 	};
 
@@ -524,6 +527,9 @@ out:
 	else if (rtpe_common_config_ptr->io_uring_buffers < 0)
 		die("Invalid value for --io-uring-buffers");
 #endif
+
+	if (rtpe_common_config_ptr->video_pkt_size <= 0)
+		rtpe_common_config_ptr->video_pkt_size = 1300;
 
 	return;
 

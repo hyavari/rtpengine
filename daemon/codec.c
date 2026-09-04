@@ -916,7 +916,7 @@ struct codec_handler *codec_handler_make_playback(const rtp_payload_type *src_pt
 	handler->ssrc_handler->h.ssrc = ssrc;
 	while (handler->ssrc_handler->csch.first_ts == 0)
 		handler->ssrc_handler->csch.first_ts = ssl_random();
-	handler->ssrc_handler->rtp_mark = true;
+	handler->ssrc_handler->rtp_mark = true; // relevant for audio
 
 	ilogs(codec, LOG_DEBUG, "Created media playback context for " STR_FORMAT "/" STR_FORMAT
 		" -> " STR_FORMAT "/" STR_FORMAT "/%d",
@@ -4458,11 +4458,13 @@ static struct ssrc_entry *__ssrc_handler_transcode_new(void *p) {
 		.time_base = h->dest_pt.time_base,
 	};
 
-	// see if there's a complete codec chain usable for this
-	if (!h->pcm_dtmf_detect)
-		ch->chain = codec_cc_new(h->source_pt.codec_def, &dec_format,
-				h->dest_pt.codec_def, &enc_format,
-				ch->bitrate, ch->ptime, async_chain_start, async_chain_finish);
+	if (h->dest_pt.codec_def->media_type == MT_AUDIO) {
+		// see if there's a complete codec chain usable for this
+		if (!h->pcm_dtmf_detect)
+			ch->chain = codec_cc_new(h->source_pt.codec_def, &dec_format,
+					h->dest_pt.codec_def, &enc_format,
+					ch->bitrate, ch->ptime, async_chain_start, async_chain_finish);
+	}
 
 	if (ch->chain) {
 		ilogs(codec, LOG_DEBUG, "Using codec chain to transcode from " STR_FORMAT "/" STR_FORMAT
@@ -6434,12 +6436,14 @@ out:
 void codec_store_synthesise_basic(struct codec_store *dst, const char *reason) {
 	if (!dst->codec_prefs.length) {
 		// no codecs given: add defaults
-		static const str PCMU_str = STR_CONST("PCMU");
-		static const str PCMA_str = STR_CONST("PCMA");
-		codec_store_add_raw_order(dst, codec_make_payload_type(&PCMU_str, MT_AUDIO));
-		codec_store_add_raw_order(dst, codec_make_payload_type(&PCMA_str, MT_AUDIO));
+		if (dst->media->type_id == MT_AUDIO) {
+			static const str PCMU_str = STR_CONST("PCMU");
+			static const str PCMA_str = STR_CONST("PCMA");
+			codec_store_add_raw_order(dst, codec_make_payload_type(&PCMU_str, MT_AUDIO));
+			codec_store_add_raw_order(dst, codec_make_payload_type(&PCMA_str, MT_AUDIO));
 
-		ilogs(codec, LOG_DEBUG, "Using default codecs PCMU and PCMA for %s", reason);
+			ilogs(codec, LOG_DEBUG, "Using default codecs PCMU and PCMA for %s", reason);
+		}
 	}
 	else {
 		// we already have a list of codecs - make sure they're all supported by us

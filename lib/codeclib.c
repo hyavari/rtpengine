@@ -283,27 +283,46 @@ static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long t
 	else
 		dec->dtx.do_dtx(dec, &frames, *ptime);
 
-	AVFrame *frame;
 	int ret = 0;
-	unsigned long samples = 0;
-	while ((frame = t_queue_pop_head(&frames))) {
-		samples += frame->nb_samples;
-		dec->dec_out_format.format = frame->format;
-		AVFrame *rsmp_frame = resample_frame(&dec->resampler, frame, &dec->dest_format);
-		if (!rsmp_frame) {
-			ilog(LOG_ERR | LOG_FLAG_LIMIT, "Resampling failed");
-			ret = -1;
-		}
-		else {
-			if (callback(dec, rsmp_frame, u1, u2))
-				ret = -1;
-		}
-		if (rsmp_frame != frame)
-			av_frame_free(&frame);
-	}
 
-	if (ptime)
-		*ptime = samples * 1000L / dec->in_format.clockrate;
+	if (dec->def->media_type == MT_AUDIO) {
+		AVFrame *frame;
+		unsigned long samples = 0;
+		while ((frame = t_queue_pop_head(&frames))) {
+			samples += frame->nb_samples;
+			dec->dec_out_format.format = frame->format;
+			AVFrame *rsmp_frame = resample_frame(&dec->resampler, frame, &dec->dest_format);
+			if (!rsmp_frame) {
+				ilog(LOG_ERR | LOG_FLAG_LIMIT, "Resampling failed");
+				ret = -1;
+			}
+			else {
+				if (callback(dec, rsmp_frame, u1, u2))
+					ret = -1;
+			}
+			if (rsmp_frame != frame)
+				av_frame_free(&frame);
+		}
+
+		if (ptime)
+			*ptime = samples * 1000L / dec->in_format.clockrate;
+	}
+	else { // MT_VIDEO
+		AVFrame *frame;
+		while ((frame = t_queue_pop_head(&frames))) {
+			AVFrame *rsmp_frame = rescale_frame(&dec->rescaler, frame, &dec->dest_format);
+			if (!rsmp_frame) {
+				ilog(LOG_ERR | LOG_FLAG_LIMIT, "Rescaling failed");
+				ret = -1;
+			}
+			else {
+				if (callback(dec, rsmp_frame, u1, u2))
+					ret = -1;
+			}
+			if (rsmp_frame != frame)
+				av_frame_free(&frame);
+		}
+	}
 
 	return ret;
 }
@@ -416,10 +435,18 @@ void codeclib_init(int print) {
 			def->default_clockrate_fact.div = 1;
 		if (!def->default_ptime)
 			def->default_ptime = -1;
-		if (!def->default_clockrate)
-			def->default_clockrate = -1;
-		if (!def->default_channels)
-			def->default_channels = -1;
+		if (!def->default_clockrate) {
+			if (def->media_type == MT_VIDEO)
+				def->default_clockrate = 90000;
+			else
+				def->default_clockrate = -1;
+		}
+		if (!def->default_channels) {
+			if (def->media_type == MT_VIDEO)
+				def->default_channels = 1;
+			else
+				def->default_channels = -1;
+		}
 		if (!def->default_fps && def->media_type == MT_VIDEO)
 			def->default_fps = 30;
 
@@ -445,8 +472,10 @@ void codeclib_init(int print) {
 
 		if (print) {
 			if (def->support_encoding && def->support_decoding) {
-				if (def->default_channels > 0 && def->default_clockrate >= 0)
-					printf("%20s: fully supported\n", def->rtpname);
+				if (def->media_type == MT_AUDIO && def->default_channels > 0 && def->default_clockrate >= 0)
+					printf("%20s: fully supported (audio)\n", def->rtpname);
+				else if (def->media_type == MT_VIDEO && def->default_width > 0 && def->default_height >= 0)
+					printf("%20s: fully supported (video)\n", def->rtpname);
 				else
 					printf("%20s: codec supported but lacks RTP definition\n", def->rtpname);
 			}
@@ -711,7 +740,7 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 
 	enc->input_fn = encoder_input_direct;
 
-	if (enc->actual_format.format != -1 && enc->actual_format.clockrate > 0) {
+	if (def->media_type == MT_AUDIO && enc->actual_format.format != -1 && enc->actual_format.clockrate > 0) {
 		enc->frame->nb_samples = enc->samples_per_frame ? : 256;
 		enc->frame->format = enc->actual_format.format;
 		enc->frame->sample_rate = enc->actual_format.clockrate;
