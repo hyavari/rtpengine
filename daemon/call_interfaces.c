@@ -749,7 +749,7 @@ const char *call_answer_ng(ng_command_ctx_t *ctx) {
 static bool monologue_has_tag(const struct call_monologue *ml, const str *tag) {
 	if (!str_cmp_str(&ml->tag, tag))
 		return true;
-	for (__auto_type l = ml->tag_aliases.head; l; l = l->next) {
+	for (auto_iter(l, ml->tag_aliases.head); l; l = l->next) {
 		if (!str_cmp_str(l->data, tag))
 			return true;
 	}
