@@ -3139,6 +3139,9 @@ static void media_make_audio_player(struct call_media *media, rtp_payload_type *
 	if (!MEDIA_ARESET2(media, AUDIO_PLAYER, SEND))
 		return;
 
+	if (media->type_id != MT_AUDIO)
+		return;
+
 	audio_player_setup(media, pref_dest_codec, rtpe_config.audio_buffer_length,
 			rtpe_config.audio_buffer_delay,
 			flags->codec_set);

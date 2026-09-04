@@ -1869,7 +1869,7 @@ next:
 		if (a.reset_transcoding && ms)
 			ms->attrs.transcoding = true;
 
-		if (!use_audio_player || !pref_dest_codec) {
+		if (!use_audio_player || !pref_dest_codec || sink->type_id != MT_AUDIO) {
 			// we have to translate RTCP packets
 			source->rtcp_handler = rtcp_transcode_handler;
 
