@@ -143,8 +143,6 @@ struct dtx_packet {
 			struct transcode_packet *packet, struct media_packet *mp);
 };
 
-typedef int (*encoder_input_func_t)(encoder_t *enc, AVFrame *frame,
-		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
 typedef int (*packet_input_func_t)(struct codec_ssrc_handler *ch, struct codec_ssrc_handler *input_ch,
 		struct transcode_packet *packet,
 		unsigned long ts_delay,
@@ -171,7 +169,6 @@ struct delay_frame {
 	int payload_type;
 	unsigned int clockrate;
 	uint32_t ts;
-	encoder_input_func_t encoder_func;
 	raw_input_func_t raw_func;
 	packet_input_func_t packet_func;
 	struct codec_handler *handler;
@@ -328,8 +325,7 @@ static void __transcode_packet_free(struct transcode_packet *);
 static tc_code packet_decode(struct codec_ssrc_handler *, struct codec_ssrc_handler *,
 		struct transcode_packet *, struct media_packet *);
 static int packet_encoded_rtp(encoder_t *enc, void *u1, void *u2);
-static int packet_decoded_fifo(decoder_t *decoder, AVFrame *frame, void *u1, void *u2);
-static int packet_decoded_direct(decoder_t *decoder, AVFrame *frame, void *u1, void *u2);
+static int packet_decoded_encode(decoder_t *decoder, AVFrame *frame, void *u1, void *u2);
 static int packet_decoded_audio_player(decoder_t *decoder, AVFrame *frame, void *u1, void *u2);
 
 static void codec_touched(struct codec_store *cs, rtp_payload_type *pt);
@@ -452,7 +448,7 @@ static void __handler_shutdown(struct codec_handler *handler) {
 	handler->kernelize = false;
 	handler->transcoder = false;
 	handler->output_handler = handler; // reset to default
-	handler->packet_decoded = packet_decoded_fifo;
+	handler->packet_decoded = packet_decoded_encode;
 	handler->dtmf_payload_type = -1;
 	handler->real_dtmf_payload_type = -1;
 	handler->cn_payload_type = -1;
@@ -500,7 +496,7 @@ static struct codec_handler *__handler_new(const rtp_payload_type *pt, struct ca
 	handler->real_dtmf_payload_type = -1;
 	handler->cn_payload_type = -1;
 	handler->packet_encoded = packet_encoded_rtp;
-	handler->packet_decoded = packet_decoded_fifo;
+	handler->packet_decoded = packet_decoded_encode;
 	handler->media = media;
 	handler->i.payload_type = handler->source_pt.payload_type;
 	handler->i.sink = sink;
@@ -893,7 +889,7 @@ static void __make_transcoder(struct codec_handler *handler, rtp_payload_type *d
 		int cn_payload_type)
 {
 	__make_transcoder_full(handler, dest, output_transcoders, dtmf_payload_type, pcm_dtmf_detect,
-			cn_payload_type, packet_decoded_fifo, __ssrc_handler_transcode_new);
+			cn_payload_type, packet_decoded_encode, __ssrc_handler_transcode_new);
 }
 static bool __make_audio_player_decoder(struct codec_handler *handler, rtp_payload_type *dest,
 		bool pcm_dtmf_detect)
@@ -1276,7 +1272,6 @@ static void __check_t38_gateway(struct call_media *pcm_media, struct call_media 
 
 		__make_transcoder(handler, &pcm_media->t38_gateway->pcm_pt, NULL, -1, false, -1);
 
-		handler->packet_decoded = packet_decoded_direct;
 		handler->packet_encoded = packet_encoded_t38;
 	}
 }
@@ -3283,12 +3278,12 @@ INLINE struct codec_ssrc_handler *ssrc_handler_get(struct codec_ssrc_handler *ch
 // consumes frame
 // `frame` can be NULL (discarded/lost packet)
 static void __buffer_delay_frame(struct delay_buffer *dbuf, struct codec_ssrc_handler *ch,
-		encoder_input_func_t input_func, AVFrame *frame, struct media_packet *mp, uint32_t ts)
+		AVFrame *frame, struct media_packet *mp, uint32_t ts)
 {
 	if (__buffer_delay_do_direct(dbuf)) {
 		// input now
 		if (frame) {
-			input_func(ch->encoder, frame, ch->handler->packet_encoded, ch, mp);
+			encoder_input_data(ch->encoder, frame, ch->handler->packet_encoded, ch, mp);
 			av_frame_free(&frame);
 		}
 		return;
@@ -3296,7 +3291,6 @@ static void __buffer_delay_frame(struct delay_buffer *dbuf, struct codec_ssrc_ha
 
 	struct delay_frame *dframe = g_new0(__typeof(*dframe), 1);
 	dframe->frame = frame;
-	dframe->encoder_func = input_func;
 	dframe->ts = ts;
 	dframe->ch = ssrc_handler_get(ch);
 	dframe->handler = ch->handler;
@@ -3674,9 +3668,9 @@ static void delay_packet_manipulate(struct delay_frame *dframe) {
 static void __delay_frame_process(struct delay_buffer *dbuf, struct delay_frame *dframe) {
 	struct codec_ssrc_handler *csh = dframe->ch;
 
-	if (csh && csh->handler && csh->encoder && dframe->encoder_func) {
+	if (csh && csh->handler && csh->encoder) {
 		delay_frame_manipulate(dframe);
-		dframe->encoder_func(csh->encoder, dframe->frame, csh->handler->packet_encoded,
+		encoder_input_data(csh->encoder, dframe->frame, csh->handler->packet_encoded,
 				csh, &dframe->mp);
 	}
 	else if (dframe->raw_func) {
@@ -4762,8 +4756,7 @@ static void __dtmf_detect(struct codec_ssrc_handler *ch, AVFrame *frame) {
 		av_frame_free(&dsp_frame);
 }
 
-static int packet_decoded_common(decoder_t *decoder, AVFrame *frame, void *u1, void *u2,
-		encoder_input_func_t input_func)
+static int packet_decoded_encode(decoder_t *decoder, AVFrame *frame, void *u1, void *u2)
 {
 	struct codec_ssrc_handler *ch = u1;
 	struct media_packet *mp = u2;
@@ -4821,7 +4814,7 @@ static int packet_decoded_common(decoder_t *decoder, AVFrame *frame, void *u1, v
 
 	uint32_t ts = frame->pts + ch->csch.first_ts;
 	__buffer_delay_frame(h->input_handler ? h->input_handler->delay_buffer : h->delay_buffer,
-			ch, input_func, frame, mp, ts);
+			ch, frame, mp, ts);
 	frame = NULL; // consumed
 
 discard:
@@ -4831,12 +4824,7 @@ discard:
 	return 0;
 }
 
-static int packet_decoded_fifo(decoder_t *decoder, AVFrame *frame, void *u1, void *u2) {
-	return packet_decoded_common(decoder, frame, u1, u2, encoder_input_fifo);
-}
-static int packet_decoded_direct(decoder_t *decoder, AVFrame *frame, void *u1, void *u2) {
-	return packet_decoded_common(decoder, frame, u1, u2, encoder_input_data);
-}
+
 static int packet_decoded_audio_player(decoder_t *decoder, AVFrame *frame, void *u1, void *u2) {
 	struct codec_ssrc_handler *ch = u1;
 	struct media_packet *mp = u2;

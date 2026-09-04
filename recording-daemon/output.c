@@ -90,7 +90,7 @@ static bool output_add(sink_t *sink, AVFrame *frame) {
 		goto out;
 	if (!output->fmtctx) // output not open
 		goto out;
-	ret = encoder_input_fifo(output->encoder, frame, output_got_packet, output, NULL) == 0;
+	ret = encoder_input_data(output->encoder, frame, output_got_packet, output, NULL) == 0;
 
 out:
 	av_frame_free(&frame);

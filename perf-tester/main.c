@@ -312,7 +312,7 @@ static int got_packet(encoder_t *encoder, void *p1, void *p2) {
 
 static int got_frame(decoder_t *decoder, AVFrame *frame, void *p1, void *b) {
 	struct stream *s = p1;
-	encoder_input_fifo(s->encoder, frame, got_packet, s, NULL);
+	encoder_input_data(s->encoder, frame, got_packet, s, NULL);
 	av_frame_free(&frame);
 	return 0;
 }

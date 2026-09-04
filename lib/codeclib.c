@@ -57,6 +57,10 @@ TYPED_GHASHTABLE(codecs_by_name, str, struct codec_def_s, str_case_hash, str_cas
 
 static codecs_by_name codecs_by_name_ht;
 
+static int encoder_input_direct(encoder_t *enc, AVFrame *frame,
+		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
+static int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
+		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
 
 
 codec_def_t *codec_find(const str *name, enum media_type type) {
@@ -705,6 +709,8 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 // output frame and fifo
 	enc->frame = av_frame_alloc();
 
+	enc->input_fn = encoder_input_direct;
+
 	if (enc->actual_format.format != -1 && enc->actual_format.clockrate > 0) {
 		enc->frame->nb_samples = enc->samples_per_frame ? : 256;
 		enc->frame->format = enc->actual_format.format;
@@ -715,6 +721,7 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 
 		enc->fifo = av_audio_fifo_alloc(enc->frame->format, enc->actual_format.channels,
 				enc->frame->nb_samples);
+		enc->input_fn = encoder_input_fifo;
 
 		ilog(LOG_DEBUG, "Initialized encoder with frame size %u samples", enc->frame->nb_samples);
 	}
@@ -759,7 +766,7 @@ void encoder_free(encoder_t *enc) {
 }
 
 
-int encoder_input_data(encoder_t *enc, AVFrame *frame,
+static int encoder_input_direct(encoder_t *enc, AVFrame *frame,
 		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2)
 {
 	enc->avpkt->size = 0;
@@ -811,7 +818,7 @@ static int encoder_fifo_flush(encoder_t *enc,
 		cdbg("output fifo pts %lu",(unsigned long) enc->fifo_pts);
 		enc->frame->pts = enc->fifo_pts;
 
-		encoder_input_data(enc, enc->frame, callback, u1, u2);
+		encoder_input_direct(enc, enc->frame, callback, u1, u2);
 
 		enc->fifo_pts += enc->frame->nb_samples;
 	}
@@ -819,9 +826,12 @@ static int encoder_fifo_flush(encoder_t *enc,
 	return 0;
 }
 
-int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
+static int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
 		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2)
 {
+	if (!frame)
+		return encoder_input_direct(enc, frame, callback, u1, u2);
+
 	AVFrame *rsmp_frame = resample_frame(&enc->resampler, frame, &enc->actual_format);
 	if (!rsmp_frame) {
 		ilog(LOG_ERR | LOG_FLAG_LIMIT, "Resampling failed");

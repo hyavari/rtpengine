@@ -399,6 +399,7 @@ struct encoder_s {
 	};
 	AVPacket *avpkt;
 	AVAudioFifo *fifo;
+	int (*input_fn)(encoder_t *, AVFrame *, int (*)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
 	int64_t fifo_pts; // pts of first data in fifo
 	int64_t packet_pts; // first pts of data in packetizer buffer
 	int64_t next_pts; // next pts expected from the encoder
@@ -475,10 +476,12 @@ int encoder_config_fmtp(encoder_t *enc, codec_def_t *def, int bitrate, int ptime
 		struct rtp_codec_format *fmtp, const str *fmtp_string, const str *codec_opts);
 void encoder_close(encoder_t *);
 void encoder_free(encoder_t *);
-int encoder_input_data(encoder_t *enc, AVFrame *frame,
-		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
-int encoder_input_fifo(encoder_t *enc, AVFrame *frame,
-		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2);
+
+INLINE int encoder_input_data(encoder_t *enc, AVFrame *frame,
+		int (*callback)(encoder_t *, void *u1, void *u2), void *u1, void *u2)
+{
+	return enc->input_fn(enc, frame, callback, u1, u2);
+}
 
 
 void packet_sequencer_init(packet_sequencer_t *ps, void (*)(seq_packet_t *));
